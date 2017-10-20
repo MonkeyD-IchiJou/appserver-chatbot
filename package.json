@@ -1,0 +1,22 @@
+{
+  "name": "appserver-chatbot",
+  "version": "0.1.0",
+  "description": "Main App server for chatbot application",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MonkeyD-IchiJou/appserver-chatbot.git"
+  },
+  "author": "ichijou",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MonkeyD-IchiJou/appserver-chatbot/issues"
+  },
+  "homepage": "https://github.com/MonkeyD-IchiJou/appserver-chatbot#readme",
+  "dependencies": {
+    "express": "^4.16.2"
+  }
+}
