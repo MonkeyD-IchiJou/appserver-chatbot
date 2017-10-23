@@ -9,10 +9,10 @@ console.log('NODE_ENV: ' + process.env.NODE_ENV + ' mode');
 const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
-const home = require('./routes/home');
 const cdotlog = require('./ndebug');
 
-app.use('/', home);
+app.use('/', require('./routes/home'));
+app.use('/console', require('./routes/private'));
 
 app.listen(PORT, ()=>{
     cdotlog(`listening on port ${PORT}`);
