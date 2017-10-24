@@ -6,15 +6,19 @@ if(process.env.NODE_ENV !== 'production') {
 // check which modes the app is running
 console.log('NODE_ENV: ' + process.env.NODE_ENV + ' mode');
 
-const express = require('express');
-const app = express();
-const PORT = process.env.PORT || 3030;
-const path = require('path');
-const cdotlog = require('./ndebug');
+let express = require('express');
+let app = express();
+let PORT = 3000;
 
-app.use('/', require('./routes/home'));
-app.use('/console', require('./routes/private'));
+// /api routes 
+app.use('/api', require('./routes/api'));
 
-app.listen(PORT, ()=>{
-    cdotlog(`listening on port ${PORT}`);
+// /bot html template render routes
+app.use('/bot', require('./routes/bot'));
+
+// get embed js file
+app.use('/embed', require('./routes/embed'));
+
+app.listen(PORT, () => {
+    console.log(`listening on port ${PORT}`);
 });
