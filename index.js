@@ -10,7 +10,10 @@ let express = require('express');
 let app = express();
 let PORT = 3000;
 
-// /api routes 
+// /auth route for authentication purposes
+app.use('/auth', require('./routes/auth'));
+
+// /api routes (may need to be authenticate first before used)
 app.use('/api', require('./routes/api'));
 
 // /bot html template render routes
