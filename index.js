@@ -8,12 +8,12 @@ console.log('NODE_ENV: ' + process.env.NODE_ENV + ' mode');
 
 const express = require('express');
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3030;
 const path = require('path');
 const cdotlog = require('./ndebug');
 
 // Serve static files from the React app
-//app.use(express.static(path.join(__dirname, 'client/publicpage-botbuilder/build')));
+app.use(express.static(path.join(__dirname, 'client/publicpage-botbuilder/build')));
 
 app.use('/', require('./routes/home'));
 app.use('/console', require('./routes/private'));

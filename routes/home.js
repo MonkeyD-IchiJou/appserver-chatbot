@@ -1,16 +1,10 @@
-var express = require('express');
-var router = express.Router();
+const router = require('express').Router();
 const cdotlog = require('./../ndebug');
+const path = require('path');
 
 router.get('/', (req, res) => {
-    // And insert something like this instead:
-    res.json([{
-        id: 1,
-        username: "samsepi0l"
-    }, {
-        id: 2,
-        username: "D0loresH4ze"
-    }]);
+    // send the html files to the client to view the homepage
+    res.sendFile(path.join(__dirname + '/client/publicpage-botbuilder/build/index.html'));
 });
 
 module.exports = router;
