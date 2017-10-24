@@ -1,10 +1,4 @@
-import dotev from 'dotenv';
 import React, { Component } from 'react';
-
-if (process.env.NODE_ENV !== 'production') {
-    // explicitly loading variables from .env files if is in development
-    dotev.config();
-}
 
 class App extends Component {
 
@@ -29,7 +23,7 @@ class App extends Component {
                     <h1>Welcome to {process.env.NODE_ENV}</h1>
                 </header>
                 <p>
-                    To get started, edit <code>src/App.js</code> and save to reload.
+                    this is the main chatbot ui
                 </p>
             </div>
         );
