@@ -7,8 +7,18 @@ if(process.env.NODE_ENV !== 'production') {
 console.log('NODE_ENV: ' + process.env.NODE_ENV + ' mode');
 
 let express = require('express');
+let cors = require('cors');
+const bodyParser = require('body-parser');
 let app = express();
 let PORT = 8000;
+
+// cross-origin-header
+app.use(cors({
+    origin: 'http://localhost:3000'
+}));
+
+// body parser
+app.use(bodyParser.json());
 
 // /auth route for authentication purposes
 app.use('/auth', require('./routes/auth'));

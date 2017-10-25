@@ -19,8 +19,11 @@
     },
     "homepage": "https://github.com/MonkeyD-IchiJou/appserver-chatbot#readme",
     "dependencies": {
+        "body-parser": "^1.18.2",
+        "cors": "^2.8.4",
         "dotenv": "^4.0.0",
         "express": "^4.16.2",
+        "mysql": "^2.15.0",
         "pug": "^2.0.0-rc.4"
     }
 }
