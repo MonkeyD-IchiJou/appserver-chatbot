@@ -8,7 +8,7 @@ console.log('NODE_ENV: ' + process.env.NODE_ENV + ' mode');
 
 let express = require('express');
 let app = express();
-let PORT = 3000;
+let PORT = 8000;
 
 // /auth route for authentication purposes
 app.use('/auth', require('./routes/auth'));
