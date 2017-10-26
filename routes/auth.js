@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { check, validationResult } = require('express-validator/check');
 const { matchedData, sanitize } = require('express-validator/filter');
+var jwt = require('jsonwebtoken'); // sign with default (HMAC SHA256)
 var bcrypt = require('bcrypt');
 const saltRounds = 10;
 
@@ -174,9 +175,12 @@ router.post(
 
             }).then(function (compareResult) {
 
+                // rmb generate a new jwt to user
+                let token = jwt.sign({ data: user }, process.env.jwtSecret, { expiresIn: '3h' });
+
                 // send the result back to client
                 res.setHeader('Content-type', 'application/json');
-                res.send(JSON.stringify({loginResult: compareResult}));
+                res.send(JSON.stringify({ loginResult: compareResult, jwt: token }));
 
             }).catch((result)=>{
 
