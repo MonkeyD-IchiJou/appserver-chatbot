@@ -26,7 +26,7 @@ router.post(
 
         if(!errors.isEmpty()) {
             // if post datas is incomplete or error, return error msg
-            return res.status(422).json({errors: errors.mapped()});
+            return res.status(422).json({success: "false", errors: errors.mapped()});
         }
         else {
 
@@ -34,10 +34,11 @@ router.post(
             const user = matchedData(req);
 
             // connect to mariadb/mysql
-            const db = require('../db.js');
+            const db = require('../../db.js');
 
             // function pointer return a promise to check email in DB
             const checkEmailInDB = () => {
+
                 return new Promise((resolve, reject) => {
 
                     // check with mariadb/mysql whether this email is in used or not
@@ -48,12 +49,13 @@ router.post(
 
                     query.on('error', (err) => {
                         console.error(err);
-                        reject({ errors: { msg: "email alr exists in the db" } });
+                        reject({ email: { msg: "email alr exists in the db" } });
                     }).on('result', (row) => {
-                        row.solution ? reject({email: {msg: "email alr exists in the db"}}) : resolve('NotFound');
+                        row.solution ? reject({ email: { msg: "email alr exists in the db" } }) : resolve('UniqueEmail');
                     });
 
                 });
+
             };
 
             // return a promise to register user in the db
@@ -74,7 +76,7 @@ router.post(
                             else {
 
                                 // successfully insert the new user into the db
-                                resolve({ success: 'true' });
+                                resolve('true');
 
                             }
                         }
@@ -98,12 +100,12 @@ router.post(
                 
                 // successfully registered
                 res.setHeader('Content-type', 'application/json');
-                res.send(JSON.stringify(result));
+                res.send(JSON.stringify({ success: 'true' }));
 
             }).catch((result) => {
 
                 // if catch any error msg, return back to client
-                return res.status(422).json({ errors: result });
+                return res.status(422).json({ success: 'false', errors: result });
 
             });
 
@@ -111,12 +113,8 @@ router.post(
     }
 );
 
-router.post('/logout', (req, res) => {
-    res.send('logout');
-});
-
 router.post(
-    '/login',
+    '/',
     [
         check('email').isEmail().withMessage('must be an email'),
         check('password', 'passwords cannot be empty').isLength({ min: 1 })
@@ -128,7 +126,7 @@ router.post(
 
         if (!errors.isEmpty()) {
             // if post datas is incomplete or error, return error msg
-            return res.status(422).json({ errors: errors.mapped() });
+            return res.status(422).json({ authResult: false, errors: errors.mapped() });
         }
         else {
 
@@ -136,7 +134,7 @@ router.post(
             const user = matchedData(req);
 
             // connect to mariadb/mysql
-            const db = require('../db.js');
+            const db = require('../../db.js');
 
             // return promise to find the user in the db
             const findUserInDB = () => {
@@ -169,23 +167,58 @@ router.post(
 
             };
 
+            // return promise to sign a jwt for the user if trusted
+            const signJWT = (trusted) => {
+
+                return new Promise((resolve, reject) => {
+
+                    if (trusted) {
+
+                        // Officially trusted this client!
+
+                        // rmb generate a new jwt to user
+                        // will be expire in 12 hours
+                        let token = jwt.sign({ data: { 'e': user.email, 'si': true } }, process.env.jwtSecret, { expiresIn: '12h' });
+
+                        if(token) {
+                            resolve(token);
+                        }
+                        else {
+                            reject({ tokenError: { msg: "token not generated for some reason, server error"} });
+                        }
+
+                    }
+                    else {
+
+                        // not trusted, send errors message
+                        reject({ password: { msg: "password incorrect" } });
+
+                    }
+
+                });
+
+            }
+
+            // start the authentication process
             findUserInDB().then((hashpassword)=>{
 
                 return bcrypt.compare(user.password, hashpassword.toString());
 
             }).then(function (compareResult) {
 
-                // rmb generate a new jwt to user
-                let token = jwt.sign({ data: user }, process.env.jwtSecret, { expiresIn: '3h' });
+                return signJWT(compareResult);
+
+            }).then((token)=>{
 
                 // send the result back to client
+                // token will be generate here
                 res.setHeader('Content-type', 'application/json');
-                res.send(JSON.stringify({ loginResult: compareResult, jwt: token }));
+                res.send(JSON.stringify({ authResult: true, jwt: token }));
 
             }).catch((result)=>{
 
                 // if catch any error msg, return back to client
-                return res.status(422).json({ errors: result });
+                return res.status(422).json({ authResult: false, errors: result });
 
             });
 
