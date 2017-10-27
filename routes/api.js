@@ -1,35 +1,45 @@
 const router = require('express').Router();
 var jwt = require('jsonwebtoken'); // sign with default (HMAC SHA256)
+const { check, validationResult } = require('express-validator/check');
+const { matchedData, sanitize } = require('express-validator/filter');
 
-router.use((req, res, next) => {
+// every api router will go through JWT verification first
+router.use(
+    [
+        check('token', 'must have a token').exists()
+    ],
+    (req, res, next) => {
 
-    // get the jwt token from body
-    let token = req.body.token;
+        // checking the results
+        const errors = validationResult(req);
 
-    console.log('verifying token');
+        if (!errors.isEmpty()) {
+            // if request datas is incomplete or error, return error msg
+            return res.status(422).json({ errors: errors.mapped() });
+        }
+        else {
 
-    if (token) {
+            // get the matched data
+            // get the jwt token from body
+            let token = matchedData(req).token;
 
-        jwt.verify(token, process.env.jwtSecret, (err, decoded) => {
-            if (err) {
-                return res.json({ success: false, message: 'Failed to authenticate token.', logout: true })
-            } 
-            else {
-                req.decoded = decoded
-                next()
-            }
-        })
+            console.log('verifying token');
 
-    } 
-    else {
+            jwt.verify(token, process.env.jwtSecret, (err, decoded) => {
+                if (err) {
+                    return res.json({ success: false, message: 'Failed to authenticate token.', logout: true });
+                }
+                else {
+                    req.decoded = decoded;
+                    next();
+                }
+            });
+        }
 
-        return res.status(403).send({
-            success: false,
-            message: 'No token provided.'
-        })
     }
-})
+);
 
+// Just a simple checking whether this token is available or not
 router.post('/validatetoken', (req, res)=>{
 
     console.log(req.decoded);
