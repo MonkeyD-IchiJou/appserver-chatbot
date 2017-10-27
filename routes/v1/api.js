@@ -15,7 +15,7 @@ router.use(
 
         if (!errors.isEmpty()) {
             // if request datas is incomplete or error, return error msg
-            return res.status(422).json({ errors: errors.mapped() });
+            return res.status(422).json({ success: false, errors: errors.mapped() });
         }
         else {
 
@@ -27,9 +27,11 @@ router.use(
 
             jwt.verify(token, process.env.jwtSecret, (err, decoded) => {
                 if (err) {
-                    return res.json({ success: false, message: 'Failed to authenticate token.', logout: true });
+                    return res.json({ success: false, errors: {jwt: 'json web token validate error'} });
                 }
                 else {
+
+                    // Officially trusted this client!
                     req.decoded = decoded;
                     next();
                 }
@@ -40,9 +42,8 @@ router.use(
 );
 
 // Just a simple checking whether this token is available or not
-router.post('/validatetoken', (req, res)=>{
+router.post('/validatetoken', (req, res) => {
 
-    console.log(req.decoded);
     // send the result back to client
     res.setHeader('Content-type', 'application/json');
     res.send(JSON.stringify({ success: true, data: req.decoded }));
