@@ -20,17 +20,8 @@ app.use(cors({
 // body parser
 app.use(bodyParser.json());
 
-// /auth route for authentication purposes
-app.use('/auth', require('./routes/auth'));
-
-// /api routes (may need to be authenticate first before used)
-app.use('/api', require('./routes/api'));
-
-// /bot html template render routes
-app.use('/bot', require('./routes/bot'));
-
-// get embed js file
-app.use('/embed', require('./routes/embed'));
+// route to the specific version of api routes
+app.use('/v1', require('./routes/v1'));
 
 app.listen(PORT, () => {
     console.log(`listening on port ${PORT}`);
