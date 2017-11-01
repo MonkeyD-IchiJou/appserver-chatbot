@@ -6,23 +6,26 @@ if(process.env.NODE_ENV !== 'production') {
 // check which modes the app is running
 console.log('NODE_ENV: ' + process.env.NODE_ENV + ' mode');
 
-let express = require('express');
-let cors = require('cors');
+var app = require('express')();
+var server = require('http').Server(app);
+var io = require('socket.io')(server);
+var cors = require('cors');
 const bodyParser = require('body-parser');
-let app = express();
-let PORT = 8000;
+const PORT = 8000;
 
 // cross-origin-header
-app.use(cors({
-    origin: 'http://localhost:3000'
-}));
-
-// body parser
-app.use(bodyParser.json());
+app.use(cors({ origin: ['http://localhost:3000', 'http://example.com'] }));
+// parse application/json
+app.use(bodyParser.json({ limit: '50mb' }));
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: false }));
 
 // route to the specific version of api routes
 app.use('/v1', require('./routes/v1'));
 
-app.listen(PORT, () => {
+// socket io setup
+require('./io-socket')(io);
+
+server.listen(PORT, () => {
     console.log(`listening on port ${PORT}`);
 });
