@@ -69,17 +69,11 @@ router.post(
         }
         else {
             let projectname = matchedData(req).projectname;
-            let useremail = req.decoded.data.e;
+            let userid = req.decoded.data.i;
             let projectDescription = matchedData(req).description;
 
             // connect to mariadb/mysql
             const db = require('../../db.js');
-
-            const returnsuccessmsg = () => {
-                // send the result back to client
-                res.setHeader('Content-type', 'application/json');
-                res.send(JSON.stringify({ success: true }));
-            };
 
             const checkSimilarProjectName = (results) => {
 
@@ -96,140 +90,55 @@ router.post(
 
             }
 
-            dbquery.findUserIdInDB(db, useremail).then((user_id)=>{
 
-                dbquery.findAllUserProjects(db, user_id).then((results)=>{
+            dbquery.findAllUserProjects(db, userid).then((results) => {
 
-                    if (results.length > 0) {
+                if (results.length > 0) {
 
-                        // check whether got any similar project name or not
-                        checkSimilarProjectName(results).then(()=>{
+                    // check whether got any similar project name or not
+                    checkSimilarProjectName(results).then(() => {
 
-                            // then create the new project
-                            return dbquery.createNewProject(db, user_id, projectname, projectDescription);
+                        // then create the new project
+                        return dbquery.createNewProject(db, userid, projectname, projectDescription);
 
-                        }).then(()=>{
+                    }).then(() => {
 
-                            returnsuccessmsg();
+                        // send the result back to client
+                        res.setHeader('Content-type', 'application/json');
+                        res.send(JSON.stringify({ success: true }));
 
-                        }).catch((result)=>{
+                    }).catch((result) => {
 
-                            // if catch any error msg, return back to client
-                            return res.status(422).json({ success: false, errors: result });
+                        // if catch any error msg, return back to client
+                        return res.status(422).json({ success: false, errors: result });
 
-                        });
-                        
-                    }
-                    else {
+                    });
 
-                        return dbquery.createNewProject(db, user_id, projectname, projectDescription);
+                }
+                else {
 
-                    }
+                    dbquery.createNewProject(db, userid, projectname, projectDescription).then(() => {
 
-                }).then(()=>{
+                        // send the result back to client
+                        res.setHeader('Content-type', 'application/json');
+                        res.send(JSON.stringify({ success: true }));
 
-                    returnsuccessmsg();
+                    }).catch((result) => {
 
-                }).catch((result)=>{
+                        // if catch any error msg, return back to client
+                        return res.status(422).json({ success: false, errors: result });
 
-                    // if catch any error msg, return back to client
-                    return res.status(422).json({ success: false, errors: result });
+                    });;
 
-                });
-
-            }).catch((result)=>{
-
-                
-
-            });
-            
-/*
-            // see this user is eligible to continue to create more projects or not
-            const checkUserEligibility = (results) => {
-
-                return new Promise((resolve, reject)=>{
-
-                    let user_id = results.user_id;
-                    let totalProjects = results.totalProjects;
-
-                    if(totalProjects > 0) {
-
-                        // check whether got exceed projects creation limit or not
-                        db.query(
-                            'SELECT plan_id FROM users_plans WHERE user_id=?',
-                            [user_id],
-                            (dberror, results, fields) => {
-                                if (dberror) {
-                                    // send db error if got any
-                                    return reject(dberror);
-                                }
-
-                                console.log(results);
-                                resolve(user_id);
-                            });
-
-                    }
-                    else {
-                        // first time creating a new project
-                        resolve(user_id);
-                    }
-
-                });
-            };
-
-            // secondly insert the new project into the db
-            const createNewProject = (user_id) => {
-
-                return new Promise((resolve, reject) => {
-                    db.query(
-                        'INSERT INTO projects (createdby, name, description) VALUES (?, ?, ?)',
-                        [user_id, projectname, projectDescription],
-                        (dberror, results, fields) => {
-                            if (dberror) {
-                                // send db error if got any
-                                return reject(dberror);
-                            }
-                            else {
-
-                                // successfully insert the new project into the db
-                                resolve(user_id);
-
-                            }
-                        }
-                    );
-                });
-
-            };
-
-            // auto create the role for this user
-
-
-            dbquery.findUserIdInDB(db, useremail).then((userid)=>{
-
-                return findAllUserProjects(userid);
-
-            }).then((results) => {
-
-                return checkUserEligibility(results);
-
-            }).then((userid) => {
-
-                return createNewProject(userid);
-
-            }).then(()=>{
-
-                // send the result back to client
-                res.setHeader('Content-type', 'application/json');
-                res.send(JSON.stringify({ success: true })); 
+                }
 
             }).catch((result)=>{
 
                 // if catch any error msg, return back to client
                 return res.status(422).json({ success: false, errors: result });
 
-            });*/
+            });
 
-            
         }
 
     }
