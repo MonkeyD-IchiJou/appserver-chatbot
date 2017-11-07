@@ -148,7 +148,7 @@ router.post(
             const db = require('../../db.js');
 
             // return promise to sign a jwt for the user if trusted
-            const signJWT = (trusted) => {
+            const signJWT = (trusted, user_id) => {
 
                 return new Promise((resolve, reject) => {
 
@@ -158,7 +158,7 @@ router.post(
 
                         // rmb generate a new jwt to user
                         // will be expire in 12 hours
-                        let token = jwt.sign({ data: { 'e': user.email, 'si': true } }, process.env.jwtSecret, { expiresIn: '12h' });
+                        let token = jwt.sign({ data: { 'i': user_id, 'si': true } }, process.env.jwtSecret, { expiresIn: '12h' });
 
                         if(token) {
                             resolve(token);
@@ -180,28 +180,39 @@ router.post(
             };
 
             // start the authentication process
-            dbquery.findUserPasswordAndConfirmInDB(db, user.email).then((hashpassword)=>{
+            dbquery.findUserPasswordAndConfirmInDB(db, user.email).then((hashpassword) => {
 
                 return bcrypt.compare(user.password, hashpassword.toString());
 
             }).then(function (compareResult) {
 
-                return signJWT(compareResult);
+                // after that find the user id for signJWT
+                dbquery.findUserIdInDB(db, user.email).then((user_id) => {
 
-            }).then((token)=>{
+                    // sign the jwt
+                    signJWT(compareResult, user_id).then((token) => {
 
-                // update the login time stamp first before sending the token back to client
-                dbquery.UpdateLoginTimestamp(db, user.email).then(()=>{
+                        // update the login time stamp first before sending the token back to client
+                        dbquery.UpdateLoginTimestamp(db, user.email).then(() => {
 
-                    // send the result back to client
-                    // token will be generate here
-                    res.setHeader('Content-type', 'application/json');
-                    res.send(JSON.stringify({ authResult: true, jwt: token }));
+                            // send the result back to client
+                            // token will be generate here
+                            res.setHeader('Content-type', 'application/json');
+                            res.send(JSON.stringify({ authResult: true, jwt: token }));
 
-                }).catch((result)=>{
+                        }).catch((result) => {
+                            // if catch any error msg, return back to client
+                            return res.status(422).json({ authResult: false, errors: result });
+                        });
+
+                    });
+
+                }).catch((result) => {
                     // if catch any error msg, return back to client
                     return res.status(422).json({ authResult: false, errors: result });
                 });
+
+               
 
             }).catch((result)=>{
 
