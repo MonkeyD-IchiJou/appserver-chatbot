@@ -6,6 +6,7 @@ var bcrypt = require('bcrypt');
 var nodemailer = require('nodemailer');
 const saltRounds = 10;
 const confirmationUrl = "http://localhost:8000/v1/auth/confirm";
+const dbquery = require('../../dbquery');
 
 var transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -46,56 +47,6 @@ router.post(
             // connect to mariadb/mysql
             const db = require('../../db.js');
 
-            // function pointer return a promise to check email in DB
-            const checkEmailInDB = () => {
-
-                return new Promise((resolve, reject) => {
-
-                    // check with mariadb/mysql whether this email is in used or not
-                    let query = db.query(
-                        'SELECT EXISTS(SELECT * FROM users WHERE email=?) AS solution',
-                        [user.email]
-                    );
-
-                    query.on('error', (err) => {
-                        console.error(err);
-                        reject({ email: { msg: "email alr exists in the db" } });
-                    }).on('result', (row) => {
-                        row.solution ? reject({ email: { msg: "email alr exists in the db" } }) : resolve('UniqueEmail');
-                    });
-
-                });
-
-            };
-
-            // return a promise to register user in the db
-            const registerUser = (hash) => {
-
-                return new Promise((resolve, reject) => {
-
-                    // if email is unique then
-                    // insert this new user into my database
-                    db.query(
-                        'INSERT INTO users (email, username, password) VALUES (?, ?, ?)',
-                        [user.email, user.username, hash],
-                        (dberror, results, fields) => {
-                            if (dberror) {
-                                // send db error if got any
-                                return reject(dberror);
-                            }
-                            else {
-
-                                // successfully insert the new user into the db
-                                resolve('true');
-
-                            }
-                        }
-                    );
-
-                });
-
-            };
-
             // send email to this user email for confirmation
             const sendConfirmationEmail = () => {
 
@@ -126,18 +77,33 @@ router.post(
 
             }
 
-            checkEmailInDB().then((result) => {
+            // first check whether this email exist in the db or not
+            dbquery.checkEmailInDB(db, user.email).then((result) => {
 
+                // email is unique
                 // hash the user password
                 return bcrypt.hash(user.password, saltRounds);
 
             }).then((hash)=>{
 
+                // successfully hashed password
                 // store hash password in DB
-                return registerUser(hash);
+                return dbquery.registerUser(db, user.email, user.username, hash);
+
+            }).then((result)=>{
+
+                // successfully register user
+                // now find that user id
+                return dbquery.findUserIdInDB(db, user.email);
+
+            }).then((user_id)=>{
+
+                // found the user_id, and then automatically register the default user plan
+                return dbquery.registerUserPlan(db, user_id, 1);
 
             }).then(()=>{
 
+                // after successfully register the user plan
                 // send the confirmation email to the user pls
                 return sendConfirmationEmail();
 
@@ -181,47 +147,6 @@ router.post(
             // connect to mariadb/mysql
             const db = require('../../db.js');
 
-            // return promise to find the user in the db
-            const findUserInDB = () => {
-
-                return new Promise((resolve, reject) => {
-                    // find the user in the db by using the email
-                    db.query(
-                        'SELECT password, confirm FROM users WHERE email=?',
-                        [user.email],
-                        (dberror, results, fields) => {
-                            if (dberror) {
-                                console.log('db error when searching password from email');
-                                // send db error if got any
-                                return reject(dberror);
-                            }
-                            else {
-
-                                if (results.length > 0) {
-                                    // results is not empty
-
-                                    if (!results[0].confirm) {
-                                        // if the user havent confirm this email, reject
-                                        reject({ emailconfirm: false });
-                                    }
-                                    else {
-                                        // if the user alr confirm this email, then carry on
-                                        resolve(results[0].password);
-                                    }
-
-                                }
-                                else {
-                                    // cannot find this user email in the db
-                                    reject({ email: { msg: "email is not exist in the db" } })
-                                }
-
-                            }
-                        }
-                    );
-                });
-
-            };
-
             // return promise to sign a jwt for the user if trusted
             const signJWT = (trusted) => {
 
@@ -252,10 +177,10 @@ router.post(
 
                 });
 
-            }
+            };
 
             // start the authentication process
-            findUserInDB().then((hashpassword)=>{
+            dbquery.findUserPasswordAndConfirmInDB(db, user.email).then((hashpassword)=>{
 
                 return bcrypt.compare(user.password, hashpassword.toString());
 
@@ -265,10 +190,18 @@ router.post(
 
             }).then((token)=>{
 
-                // send the result back to client
-                // token will be generate here
-                res.setHeader('Content-type', 'application/json');
-                res.send(JSON.stringify({ authResult: true, jwt: token }));
+                // update the login time stamp first before sending the token back to client
+                dbquery.UpdateLoginTimestamp(db, user.email).then(()=>{
+
+                    // send the result back to client
+                    // token will be generate here
+                    res.setHeader('Content-type', 'application/json');
+                    res.send(JSON.stringify({ authResult: true, jwt: token }));
+
+                }).catch((result)=>{
+                    // if catch any error msg, return back to client
+                    return res.status(422).json({ authResult: false, errors: result });
+                });
 
             }).catch((result)=>{
 
@@ -302,23 +235,18 @@ router.get('/confirm', (req, res)=>{
                     // then update db about confimation
                     // connect to mariadb/mysql
                     const db = require('../../db.js');
-                    db.query(
-                        'UPDATE users SET confirm=1 WHERE email=(?)',
-                        [decoded.data.e],
-                        (dberror, results, fields) => {
-                            if (dberror) {
-                                // send db error if got any
-                                console.log(dberror);
-                                res.send('Invalid Token, u hacka?');
-                            }
-                            else {
+                    
+                    dbquery.updateConfirmation(db, decoded.data.e).then((result)=>{
 
-                                // successfully update the user confirmation
-                                res.send('Thank you for joining! ' + decoded.data.e);
+                        // successfully update the user confirmation
+                        res.send(result);
 
-                            }
-                        }
-                    );
+                    }).catch((result)=>{
+
+                        // update confirmation not successfull
+                        res.send(result);
+
+                    });
 
                 }
                 else {
