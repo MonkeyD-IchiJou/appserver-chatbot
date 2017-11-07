@@ -37,7 +37,7 @@ exports.registerUser = (db, user_email, user_username, hash) => {
             (dberror, results, fields) => {
                 if (dberror) {
                     // send db error if got any
-                    return reject(dberror);
+                    reject(dberror);
                 }
                 else {
 
@@ -88,7 +88,7 @@ exports.registerUserPlan = (db, user_id, plan_id) => {
             (dberror, results, fields) => {
                 if (dberror) {
                     // send db error if got any
-                    return reject(dberror);
+                    reject(dberror);
                 }
                 else {
 
@@ -145,7 +145,7 @@ exports.findUserPasswordAndConfirmInDB = (db, user_email) => {
                 if (dberror) {
                     console.log('db error when searching password from email');
                     // send db error if got any
-                    return reject(dberror);
+                    reject(dberror);
                 }
                 else {
 
@@ -190,7 +190,7 @@ exports.UpdateLoginTimestamp = (db, user_email) => {
                 if (dberror) {
                     console.log('db error when updating lastlogin from email');
                     // send db error if got any
-                    return reject(dberror);
+                    reject(dberror);
                 }
                 else {
                     // if I have updated the timestamp, then carry on
@@ -212,7 +212,7 @@ exports.findAllUserProjects = (db, user_id) => {
             (dberror, results, fields) => {
                 if (dberror) {
                     // send db error if got any
-                    return reject(dberror);
+                    reject(dberror);
                 }
                 else {
                     // return user id and current total projects number
@@ -234,7 +234,7 @@ exports.createNewProject = (db, user_id, projectname, projectDescription) => {
             (dberror, results, fields) => {
                 if (dberror) {
                     // send db error if got any
-                    return reject(dberror);
+                    reject(dberror);
                 }
                 else {
 
