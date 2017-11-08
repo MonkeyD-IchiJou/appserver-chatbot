@@ -297,7 +297,6 @@ exports.findAllUserProjectsInfo = (db, user_id) => {
 // secondly insert the new project into the db
 exports.createNewProject = (db, user_id, projectname, projectDescription) => {
 
-    console.log('kh');
     return new Promise((resolve, reject) => {
         db.query(
             'INSERT INTO projects (createdby, name, description, uuid) VALUES (?, ?, ?, ?)',
@@ -318,3 +317,65 @@ exports.createNewProject = (db, user_id, projectname, projectDescription) => {
     });
 
 };
+
+// create chatbot
+exports.createChatBot = (db, apitoken, chatbotname) => {
+
+    return new Promise((resolve, reject) => {
+
+        // first find the project id first
+        db.query(
+            'SELECT id FROM projects WHERE uuid=?',
+            [apitoken],
+            (dberror, results, fields) => {
+                if (dberror) {
+                    // send db error if got any
+                    reject(dberror);
+                }
+                else {
+
+                    if (results.length > 0){
+
+                        db.query('INSERT INTO chatbots (name, project_id) VALUES (?, ?)',
+                            [chatbotname, results[0].id],
+                            (dberror, results, fields) => {
+                                if (dberror) {
+                                    // send db error if got any
+                                    reject(dberror);
+                                }
+                                else {
+                                    resolve(true);
+                                }
+                            });
+
+                    }
+                    else {
+                        reject('the apitoken is not in the db');
+                    }
+
+                }
+            }
+        );
+    });
+
+};
+
+exports.getChatbots = (db, apitoken) => {
+
+    return new Promise((resolve, reject) => {
+        db.query(
+            'SELECT chatbots.id FROM projects JOIN chatbots ON uuid=?',
+            [apitoken],
+            (dberror, results, fields) => {
+
+                if (dberror) {
+                    // send db error if got any
+                    reject(dberror);
+                }
+                else {
+                    
+                    resolve(results);
+                }
+            });
+    });
+}

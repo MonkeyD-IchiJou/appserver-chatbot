@@ -4,6 +4,7 @@ const { check, validationResult } = require('express-validator/check');
 const { matchedData, sanitize } = require('express-validator/filter');
 const dbquery = require('../../dbquery');
 
+
 // every api router will go through JWT verification first
 router.use(
     [
@@ -177,5 +178,55 @@ router.post('/getprojects', (req, res) => {
     });
 
 });
+
+router.post(
+    '/newchatbot',
+    [
+        check('chatbotName', 'must have a chatbot name').exists().isLength({ min: 1 }),
+        check('apitoken', 'apitoken is require').exists().isLength({ min: 1 })
+    ],
+    (req, res) => {
+
+        // checking the results
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            // if request datas is incomplete or error, return error msg
+            return res.status(422).json({ success: false, errors: errors.mapped() });
+        }
+        else {
+
+            let chatbotName = matchedData(req).chatbotName;
+            let apitoken = matchedData(req).apitoken;
+
+            const db = require('../../db.js');
+
+            dbquery.getChatbots(db, apitoken).then((results) => {
+
+                if(results.length > 0){
+                    return new Promise((resolve, reject) => {
+                        reject('one project one chatbot only');
+                    });
+                }
+                else {
+                    return dbquery.createChatBot(db, apitoken, chatbotName)
+                }
+
+            }).then(() => {
+
+                // send the result back to client
+                res.setHeader('Content-type', 'application/json');
+                res.send(JSON.stringify({ success: true }));
+
+            }).catch((result) => {
+                return res.status(422).json({ success: false, errors: result });
+            })
+
+        }
+
+    }
+);
+
+
 
 module.exports = router;
