@@ -5,6 +5,8 @@ class App extends Component {
     constructor(props) {
         super(props);
 
+        console.log(window.projectID);
+
         // check which modes the app is running
         console.log('NODE_ENV: ' + process.env.NODE_ENV + ' mode');
 
