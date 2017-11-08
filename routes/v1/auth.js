@@ -65,7 +65,6 @@ router.post(
 
                     transporter.sendMail(mailOptions, (error, info) => {
                         if (error) {
-                            console.log(error);
                             reject(error);
                         }
                         else {
@@ -171,7 +170,7 @@ router.post(
                     else {
 
                         // not trusted, send errors message
-                        reject({ password: { msg: "password incorrect" } });
+                        reject({ password: { msg: "not yet confirm, check your email" } });
 
                     }
 

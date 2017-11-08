@@ -88,60 +88,94 @@ router.post(
                     resolve(true);
                 });
 
-            }
+            };
 
+            dbquery.findPlanIdInDB(db, userid).then((plan_id)=>{
 
-            dbquery.findAllUserProjects(db, userid).then((results) => {
+                return dbquery.findPlansInDB(db, plan_id)
 
-                if (results.length > 0) {
+            }).then((plans)=>{
 
-                    // check whether got any similar project name or not
-                    checkSimilarProjectName(results).then(() => {
+                dbquery.findAllUserProjects(db, userid).then((results) => {
 
-                        // then create the new project
-                        return dbquery.createNewProject(db, userid, projectname, projectDescription);
-
-                    }).then(() => {
-
+                    if(results.length >= plans.projects_limit){
                         // send the result back to client
                         res.setHeader('Content-type', 'application/json');
-                        res.send(JSON.stringify({ success: true }));
+                        res.send(JSON.stringify({ success: false, msg: 'exceed the project limit' }));
+                    }
 
-                    }).catch((result) => {
+                    else if (results.length > 0) {
 
-                        // if catch any error msg, return back to client
-                        return res.status(422).json({ success: false, errors: result });
+                        // check whether got any similar project name or not
+                        checkSimilarProjectName(results).then(() => {
 
-                    });
+                            // then create the new project
+                            return dbquery.createNewProject(db, userid, projectname, projectDescription);
 
-                }
-                else {
+                        }).then(() => {
 
-                    dbquery.createNewProject(db, userid, projectname, projectDescription).then(() => {
+                            // send the result back to client
+                            res.setHeader('Content-type', 'application/json');
+                            res.send(JSON.stringify({ success: true }));
 
-                        // send the result back to client
-                        res.setHeader('Content-type', 'application/json');
-                        res.send(JSON.stringify({ success: true }));
+                        }).catch((result) => {
 
-                    }).catch((result) => {
+                            // if catch any error msg, return back to client
+                            return res.status(422).json({ success: false, errors: result });
 
-                        // if catch any error msg, return back to client
-                        return res.status(422).json({ success: false, errors: result });
+                        });
 
-                    });;
+                    }
 
-                }
+                    else if (results.length == 0) {
+
+                        dbquery.createNewProject(db, userid, projectname, projectDescription).then(() => {
+
+                            // send the result back to client
+                            res.setHeader('Content-type', 'application/json');
+                            res.send(JSON.stringify({ success: true }));
+
+                        }).catch((result) => {
+
+                            // if catch any error msg, return back to client
+                            return res.status(422).json({ success: false, errors: result });
+
+                        });
+
+                    }
+
+                }).catch((result) => {
+
+                    // if catch any error msg, return back to client
+                    return res.status(422).json({ success: false, errors: result });
+
+                });
 
             }).catch((result)=>{
 
-                // if catch any error msg, return back to client
                 return res.status(422).json({ success: false, errors: result });
 
             });
-
         }
+});
 
-    }
-);
+// get all the projects related to this user
+router.post('/getprojects', (req, res) => {
+
+    let userid = req.decoded.data.i;
+
+    // connect to mariadb/mysql
+    const db = require('../../db.js');
+
+    dbquery.findAllUserProjectsInfo(db, userid).then((results) => {
+        console.log(results[0].uuid);
+        // send the result back to client
+        res.setHeader('Content-type', 'application/json');
+        res.send(JSON.stringify({success: true, results: results }));
+    }).catch((result) => {
+        return res.status(422).json({ success: false, errors: result });
+    });
+
+});
 
 module.exports = router;
