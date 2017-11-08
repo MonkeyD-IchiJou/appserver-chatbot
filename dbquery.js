@@ -1,3 +1,5 @@
+const uuidv4 = require('uuid/v4');
+
 // return a promise to check whether the email exist in DB or not
 exports.checkEmailInDB = (db, user_email) => {
 
@@ -76,6 +78,52 @@ exports.findUserIdInDB = (db, user_email) => {
     });
 
 }
+
+exports.findPlanIdInDB = (db, user_id) => {
+
+    return new Promise((resolve, reject) => {
+
+        // check with mariadb/mysql whether this email is in used or not
+        let query = db.query(
+            'SELECT plan_id FROM users_plans WHERE user_id=?',
+            [user_id]
+        );
+
+        query.on('error', (err) => {
+
+            reject(err);
+
+        }).on('result', (row) => {
+
+            resolve(row.plan_id);
+
+        });
+
+    });
+
+}
+
+exports.findPlansInDB = (db, plan_id) => {
+
+    return new Promise((resolve, reject) => {
+
+        let query = db.query(
+            'SELECT * FROM plans WHERE id=?',
+            [plan_id]
+        );
+
+        query.on('error', (err) => {
+
+            reject(err);
+
+        }).on('result', (row) => {
+
+            resolve(row);
+
+        });
+
+    });
+};
 
 // return a promise to Insert new default data in users_plans
 exports.registerUserPlan = (db, user_id, plan_id) => {
@@ -224,13 +272,36 @@ exports.findAllUserProjects = (db, user_id) => {
 
 };
 
-// secondly insert the new project into the db
-exports.createNewProject = (db, user_id, projectname, projectDescription) => {
+// return a promise to gather all the projects that this user have
+exports.findAllUserProjectsInfo = (db, user_id) => {
 
     return new Promise((resolve, reject) => {
         db.query(
-            'INSERT INTO projects (createdby, name, description) VALUES (?, ?, ?)',
-            [user_id, projectname, projectDescription],
+            'SELECT * FROM projects WHERE createdby=?',
+            [user_id],
+            (dberror, results, fields) => {
+                if (dberror) {
+                    // send db error if got any
+                    reject(dberror);
+                }
+                else {
+                    // return user id and current total projects number
+                    resolve(results);
+                }
+            }
+        );
+    });
+
+};
+
+// secondly insert the new project into the db
+exports.createNewProject = (db, user_id, projectname, projectDescription) => {
+
+    console.log('kh');
+    return new Promise((resolve, reject) => {
+        db.query(
+            'INSERT INTO projects (createdby, name, description, uuid) VALUES (?, ?, ?, ?)',
+            [user_id, projectname, projectDescription, uuidv4()],
             (dberror, results, fields) => {
                 if (dberror) {
                     // send db error if got any
