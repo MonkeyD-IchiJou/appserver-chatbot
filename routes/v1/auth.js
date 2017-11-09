@@ -186,10 +186,10 @@ router.post(
             }).then(function (compareResult) {
 
                 // after that find the user id for signJWT
-                dbquery.findUserIdInDB(db, user.email).then((user_id) => {
+                dbquery.findUserInfoInDB(db, user.email).then((userinfo) => {
 
                     // sign the jwt
-                    signJWT(compareResult, user_id).then((token) => {
+                    signJWT(compareResult, userinfo.id).then((token) => {
 
                         // update the login time stamp first before sending the token back to client
                         dbquery.UpdateLoginTimestamp(db, user.email).then(() => {
@@ -197,7 +197,7 @@ router.post(
                             // send the result back to client
                             // token will be generate here
                             res.setHeader('Content-type', 'application/json');
-                            res.send(JSON.stringify({ authResult: true, jwt: token }));
+                            res.send(JSON.stringify({ authResult: true, jwt: token, username: userinfo.username }));
 
                         }).catch((result) => {
                             // if catch any error msg, return back to client

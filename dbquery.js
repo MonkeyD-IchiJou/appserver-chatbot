@@ -79,6 +79,56 @@ exports.findUserIdInDB = (db, user_email) => {
 
 }
 
+// first find the id for this user in the db
+exports.findUserInfoInDB = (db, user_email) => {
+
+    return new Promise((resolve, reject) => {
+
+        // check with mariadb/mysql whether this email is in used or not
+        let query = db.query(
+            'SELECT * FROM users WHERE email=?',
+            [user_email]
+        );
+
+        query.on('error', (err) => {
+
+            reject(err);
+
+        }).on('result', (row) => {
+
+            resolve(row);
+
+        });
+
+    });
+
+}
+
+// first find the id for this user in the db
+exports.findUserInfoByID = (db, id) => {
+
+    return new Promise((resolve, reject) => {
+
+        // check with mariadb/mysql whether this email is in used or not
+        let query = db.query(
+            'SELECT * FROM users WHERE id=?',
+            [id]
+        );
+
+        query.on('error', (err) => {
+
+            reject(err);
+
+        }).on('result', (row) => {
+
+            resolve(row);
+
+        });
+
+    });
+
+}
+
 exports.findPlanIdInDB = (db, user_id) => {
 
     return new Promise((resolve, reject) => {

@@ -46,9 +46,15 @@ router.use(
 // Just a simple checking whether this token is available or not
 router.post('/validatetoken', (req, res) => {
 
-    // send the result back to client
-    res.setHeader('Content-type', 'application/json');
-    res.send(JSON.stringify({ success: true, data: req.decoded }));
+    const db = require('../../db.js');
+
+    dbquery.findUserInfoByID(db, req.decoded.data.i).then((result)=>{
+        // send the result back to client
+        res.setHeader('Content-type', 'application/json');
+        res.send(JSON.stringify({ success: true, data: req.decoded, username: result.username }));
+    }).catch((result)=>{
+        console.log(result);
+    });
 
 });
 
@@ -169,11 +175,11 @@ router.post('/getprojects', (req, res) => {
     const db = require('../../db.js');
 
     dbquery.findAllUserProjectsInfo(db, userid).then((results) => {
-        console.log(results[0].uuid);
         // send the result back to client
         res.setHeader('Content-type', 'application/json');
         res.send(JSON.stringify({success: true, results: results }));
     }).catch((result) => {
+        console.log('adf');
         return res.status(422).json({ success: false, errors: result });
     });
 
