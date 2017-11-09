@@ -170,7 +170,7 @@ router.post(
                     else {
 
                         // not trusted, send errors message
-                        reject({ password: { msg: "not yet confirm, check your email" } });
+                        reject({ password: { msg: "password incorrect" } });
 
                     }
 
@@ -204,6 +204,9 @@ router.post(
                             return res.status(422).json({ authResult: false, errors: result });
                         });
 
+                    }).catch((result) => {
+                        // if catch any error msg, return back to client
+                        return res.status(422).json({ authResult: false, errors: result });
                     });
 
                 }).catch((result) => {
