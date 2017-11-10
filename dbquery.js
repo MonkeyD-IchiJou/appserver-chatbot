@@ -428,4 +428,51 @@ exports.getChatbots = (db, apitoken) => {
                 }
             });
     });
-}
+};
+
+// testing stuff
+exports.createNewHotelData = (db, user_id, hoteldata) => {
+
+    return new Promise((resolve, reject) => {
+        db.query(
+            'INSERT INTO hotelstuff (user_id, StartTime, EndTime, CreationDate, EventName, Level, RoomName, EventDetails, ContactPerson, ContactNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [user_id, hoteldata.StartTime, hoteldata.EndTime, hoteldata.CreationDate, hoteldata.EventName, hoteldata.Level, hoteldata.RoomName, hoteldata.EventDetails, hoteldata.ContactPerson, hoteldata.ContactNumber],
+            (dberror, results, fields) => {
+                if (dberror) {
+                    // send db error if got any
+                    reject(dberror);
+                }
+                else {
+
+                    // successfully insert the new project into the db
+                    resolve(true);
+
+                }
+            }
+        );
+    });
+
+};
+
+// testing stuff
+exports.findAllHotelDataInfo = (db, user_id) => {
+
+    return new Promise((resolve, reject) => {
+        db.query(
+            'SELECT StartTime, EndTime, CreationDate, EventName, Level, RoomName, EventDetails, ContactPerson, ContactNumber FROM hotelstuff WHERE user_id=?',
+            [user_id],
+            (dberror, results, fields) => {
+                if (dberror) {
+                    // send db error if got any
+                    reject(dberror);
+                }
+                else {
+                    // return user id and current total projects number
+                    resolve(results);
+                }
+            }
+        );
+    });
+
+};
+
