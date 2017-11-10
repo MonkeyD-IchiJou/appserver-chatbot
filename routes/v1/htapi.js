@@ -72,7 +72,6 @@ router.post(
             res.send(JSON.stringify({ success: false }));
         });
 
-        
     }
 );
 
