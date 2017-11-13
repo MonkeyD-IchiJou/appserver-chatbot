@@ -33,7 +33,7 @@ var findAllHotelDataInfo = (db, user_id) => {
 
     return new Promise((resolve, reject) => {
         db.query(
-            'SELECT StartTime, EndTime, CreationDate, EventName, Level, RoomName, EventDetails, ContactPerson, ContactNumber FROM hotelstuff WHERE user_id=?',
+            'SELECT id, StartTime, EndTime, CreationDate, EventName, Level, RoomName, EventDetails, ContactPerson, ContactNumber FROM hotelstuff WHERE user_id=?',
             [user_id],
             (dberror, results, fields) => {
                 if (dberror) {
