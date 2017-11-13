@@ -430,6 +430,14 @@ exports.getChatbots = (db, apitoken) => {
     });
 };
 
+
+
+
+
+
+
+
+
 // testing stuff
 exports.createNewHotelData = (db, user_id, hoteldata) => {
 

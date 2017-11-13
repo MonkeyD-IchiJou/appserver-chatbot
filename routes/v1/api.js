@@ -185,6 +185,8 @@ router.post('/getprojects', (req, res) => {
 
 });
 
+// get a project info
+
 router.post(
     '/newchatbot',
     [
