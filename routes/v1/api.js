@@ -4,7 +4,6 @@ const { check, validationResult } = require('express-validator/check');
 const { matchedData, sanitize } = require('express-validator/filter');
 const dbquery = require('../../dbquery');
 
-
 // every api router will go through JWT verification first
 router.use(
     [
