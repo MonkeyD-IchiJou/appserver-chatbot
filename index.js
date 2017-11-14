@@ -6,12 +6,20 @@ if(process.env.NODE_ENV !== 'production') {
 // check which modes the app is running
 console.log('NODE_ENV: ' + process.env.NODE_ENV + ' mode');
 
-var app = require('express')();
+var express = require('express');
+var app = express();
 var server = require('http').Server(app);
 var io = require('socket.io')(server);
 var cors = require('cors');
+const path = require('path');
 const bodyParser = require('body-parser');
 const PORT = 8000;
+
+// Load View Engine
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'pug');
+
+app.use(express.static('public'));
 
 // cross-origin-header
 app.use(cors({ origin: ['http://localhost:3000', 'http://example.com'] }));
