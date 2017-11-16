@@ -22,7 +22,7 @@ app.set('view engine', 'pug');
 app.use(express.static('public'));
 
 // cross-origin-header
-app.use(cors({ origin: ['http://localhost:3000', 'http://example.com'] }));
+app.use(cors({ origin: ['http://localhost:3000', 'http://example.com', 'http://localhost:5002'] }));
 // parse application/json
 app.use(bodyParser.json({ limit: '50mb' }));
 // parse application/x-www-form-urlencoded
