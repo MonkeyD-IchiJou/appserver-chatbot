@@ -277,6 +277,4 @@ router.get('/confirm', (req, res)=>{
 
 });
 
-
-
 module.exports = router;

@@ -4,7 +4,7 @@ const { check, validationResult } = require('express-validator/check');
 const { matchedData, sanitize } = require('express-validator/filter');
 const dbquery = require('../../dbquery');
 
-// testing stuff
+// db query testing stuff
 var createNewHotelData = (db, user_id, hoteldata) => {
 
     return new Promise((resolve, reject) => {
@@ -28,7 +28,6 @@ var createNewHotelData = (db, user_id, hoteldata) => {
 
 };
 
-// testing stuff
 var findAllHotelDataInfo = (db, user_id) => {
 
     return new Promise((resolve, reject) => {
@@ -92,7 +91,7 @@ var editHotelData = (db, hotel_id, hoteldata) => {
 
 };
 
-// every api router will go through JWT verification first
+// every hotel api router will go through JWT verification first
 router.use(
     [
         check('token', 'must have a token').exists()
@@ -130,9 +129,7 @@ router.use(
     }
 );
 
-router.post(
-    '/addnew',
-    (req, res) => {
+router.post('/addnew', (req, res) => {
 
         let userid = req.decoded.data.i;
 
@@ -151,13 +148,17 @@ router.post(
         const db = require('../../db.js');
 
         createNewHotelData(db, userid, hoteldatas).then((result)=>{
+
             console.log(result);
             res.setHeader('Content-type', 'application/json');
             res.send(JSON.stringify({ success: true }));
+
         }).catch((result)=>{
+
             console.log(result);
             res.setHeader('Content-type', 'application/json');
             res.send(JSON.stringify({ success: false }));
+
         });
 
     }
@@ -183,13 +184,17 @@ router.post('/editdata', (req, res) => {
         const db = require('../../db.js');
 
         editHotelData(db, htdataid, hoteldatas).then((result) => {
+
             console.log(result);
             res.setHeader('Content-type', 'application/json');
             res.send(JSON.stringify({ success: true }));
+
         }).catch((result) => {
+
             console.log(result);
             res.setHeader('Content-type', 'application/json');
             res.send(JSON.stringify({ success: false }));
+
         });
 
     }
@@ -203,32 +208,39 @@ router.post('/deldata', (req, res) => {
     const db = require('../../db.js');
 
     deleteSingleHotelData(db, htdataid).then((result) => {
+
         console.log(result);
         res.setHeader('Content-type', 'application/json');
         res.send(JSON.stringify({ result: result }));
+
     }).catch((result) => {
+
         console.log(result);
         res.setHeader('Content-type', 'application/json');
         res.send(JSON.stringify({ error: false }));
+
     });
+
 });
 
-router.get(
-    '/getalldatas',
-    (req, res) => {
+router.get('/getalldatas', (req, res) => {
 
         let userid = req.decoded.data.i;
 
         const db = require('../../db.js');
 
         findAllHotelDataInfo(db, userid).then((result)=>{
+
             console.log(result);
             res.setHeader('Content-type', 'application/json');
             res.send(JSON.stringify({ result: result }));
+
         }).catch((result)=>{
+
             console.log(result);
             res.setHeader('Content-type', 'application/json');
             res.send(JSON.stringify({ error: false }));
+
         });
     }
 );

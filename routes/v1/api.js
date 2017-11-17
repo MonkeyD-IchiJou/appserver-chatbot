@@ -42,22 +42,7 @@ router.use(
     }
 );
 
-// Just a simple checking whether this token is available or not
-router.post('/validatetoken', (req, res) => {
-
-    const db = require('../../db.js');
-
-    dbquery.findUserInfoByID(db, req.decoded.data.i).then((result)=>{
-        // send the result back to client
-        res.setHeader('Content-type', 'application/json');
-        res.send(JSON.stringify({ success: true, data: req.decoded, username: result.username }));
-    }).catch((result)=>{
-        console.log(result);
-    });
-
-});
-
-// User can create a project
+// create a new project
 router.post(
     '/newproject',
     [
@@ -165,27 +150,7 @@ router.post(
         }
 });
 
-// get all the projects related to this user
-router.post('/getprojects', (req, res) => {
-
-    let userid = req.decoded.data.i;
-
-    // connect to mariadb/mysql
-    const db = require('../../db.js');
-
-    dbquery.findAllUserProjectsInfo(db, userid).then((results) => {
-        // send the result back to client
-        res.setHeader('Content-type', 'application/json');
-        res.send(JSON.stringify({success: true, results: results }));
-    }).catch((result) => {
-        console.log('adf');
-        return res.status(422).json({ success: false, errors: result });
-    });
-
-});
-
-// get a project info
-
+// create a new chatbot
 router.post(
     '/newchatbot',
     [
@@ -234,6 +199,38 @@ router.post(
     }
 );
 
+// get all the projects related to this user
+router.post('/getprojects', (req, res) => {
 
+    let userid = req.decoded.data.i;
+
+    // connect to mariadb/mysql
+    const db = require('../../db.js');
+
+    dbquery.findAllUserProjectsInfo(db, userid).then((results) => {
+        // send the result back to client
+        res.setHeader('Content-type', 'application/json');
+        res.send(JSON.stringify({ success: true, results: results }));
+    }).catch((result) => {
+        console.log('adf');
+        return res.status(422).json({ success: false, errors: result });
+    });
+
+});
+
+// Just a simple checking whether this token is available or not
+router.post('/validatetoken', (req, res) => {
+
+    const db = require('../../db.js');
+
+    dbquery.findUserInfoByID(db, req.decoded.data.i).then((result) => {
+        // send the result back to client
+        res.setHeader('Content-type', 'application/json');
+        res.send(JSON.stringify({ success: true, data: req.decoded, username: result.username }));
+    }).catch((result) => {
+        console.log(result);
+    });
+
+});
 
 module.exports = router;
