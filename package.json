@@ -4,8 +4,7 @@
     "description": "Main App server for chatbot application",
     "main": "index.js",
     "scripts": {
-        "start": "NODE_ENV=development node index.js",
-        "start:prod": "NODE_ENV=production node index.js",
+        "start": "node index.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "repository": {
@@ -19,7 +18,7 @@
     },
     "homepage": "https://github.com/MonkeyD-IchiJou/appserver-chatbot#readme",
     "dependencies": {
-        "bcrypt": "^1.0.3",
+        "bcryptjs": "^2.4.3",
         "body-parser": "^1.18.2",
         "cors": "^2.8.4",
         "dotenv": "^4.0.0",
