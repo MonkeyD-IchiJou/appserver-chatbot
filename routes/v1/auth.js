@@ -1,13 +1,14 @@
-const router = require('express').Router();
-const { check, validationResult } = require('express-validator/check');
-const { matchedData, sanitize } = require('express-validator/filter');
-var jwt = require('jsonwebtoken'); // sign with default (HMAC SHA256)
-var bcrypt = require('bcrypt');
-var nodemailer = require('nodemailer');
-const saltRounds = 10;
+const router = require('express').Router()
+const { check, validationResult } = require('express-validator/check')
+const { matchedData, sanitize } = require('express-validator/filter')
+var jwt = require('jsonwebtoken') // sign with default (HMAC SHA256)
+var nodemailer = require('nodemailer')
+var { Database } = require('../../database')
+const bcrypt = require('bcryptjs')
+
+const saltRounds = 10
 const confirmationUrl = "http://localhost:8000/v1/auth/confirm";
 const dbquery = require('../../dbquery');
-
 var transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -47,7 +48,7 @@ router.post(
             // connect to mariadb/mysql
             const db = require('../../db.js');
 
-            // send email to this user email for confirmation
+            // promise to send email to this user email for confirmation
             const sendConfirmationEmail = () => {
 
                 return new Promise((resolve, reject)=>{
@@ -81,6 +82,7 @@ router.post(
 
                 // email is unique
                 // hash the user password
+                const bcrypt = require('bcrypt');
                 return bcrypt.hash(user.password, saltRounds);
 
             }).then((hash)=>{
@@ -123,6 +125,54 @@ router.post(
     }
 );
 
+require('dotenv').load()
+
+asyncdbquery = async (user_submit) => {
+
+    const sqlconfig = {
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME
+    }
+
+    // connect to mariadb/mysql
+    const database = new Database(sqlconfig)
+
+    try {
+        const sql_user_row = 'SELECT password, confirm FROM users WHERE email=?'
+
+        const user_row = await database.query(sql_user_row, [user_submit.email])
+
+        if (user_row[0].confirm) {
+
+            // get the hash password from the db query
+            let hashpw_compare = await bcrypt.compare(user_submit.password, user_row[0].password.toString())
+            
+            if(hashpw_compare) {
+                // if password is correct
+                
+            }
+            else {
+                throw 'password is incorrect'
+            }
+        }
+        else {
+            throw 'user has not yet confirm their email'
+        }
+    }
+    catch (e) {
+        console.log(e.toString());
+    }
+
+    // rmb to close the db
+    const dbclose = await database.close()
+
+}
+
+asyncdbquery({ email: 'ichijou8282@gmail.com', password: 'ichijo950802' })
+
+
 router.post(
     '/',
     [
@@ -159,11 +209,11 @@ router.post(
                         // will be expire in 12 hours
                         let token = jwt.sign({ data: { 'i': user_id, 'si': true } }, process.env.jwtSecret, { expiresIn: '12h' });
 
-                        if(token) {
+                        if (token) {
                             resolve(token);
                         }
                         else {
-                            reject({ tokenError: { msg: "token not generated for some reason, server error"} });
+                            reject({ tokenError: { msg: "token not generated for some reason, server error" } });
                         }
 
                     }
@@ -213,8 +263,6 @@ router.post(
                     // if catch any error msg, return back to client
                     return res.status(422).json({ authResult: false, errors: result });
                 });
-
-               
 
             }).catch((result)=>{
 
