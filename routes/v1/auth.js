@@ -1,3 +1,4 @@
+require('../../loadenv')() // load all the env
 const router = require('express').Router()
 const { check, validationResult } = require('express-validator/check')
 const { matchedData, sanitize } = require('express-validator/filter')
@@ -8,14 +9,264 @@ const bcrypt = require('bcryptjs')
 
 const saltRounds = 10
 const confirmationUrl = "http://localhost:8000/v1/auth/confirm";
-const dbquery = require('../../dbquery');
 var transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.email,
         pass: process.env.email_password
     }
-});
+})
+const sqlconfig = {
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
+}
+
+// return promise to sign a jwt for the user confirmation email
+var signConfirmJWT = (user_email) => {
+
+    return new Promise((resolve, reject) => {
+
+        // will be expire in 6 hours
+        // sign a confirmation token first
+        let token = jwt.sign({ data: { 'e': user_email, 'ct': true } }, process.env.jwtSecret, { expiresIn: '6h' });
+
+        if (token) {
+            resolve(token)
+        }
+        else {
+            reject("token not generated for some reason, server error")
+        }
+
+    })
+
+}
+
+// return promise to sign a jwt for the user if trusted
+var signLoginJWT = (user_id) => {
+
+    return new Promise((resolve, reject) => {
+
+        // rmb generate a new jwt to user
+        // will be expire in 24 hours
+        let token = jwt.sign({ data: { 'i': user_id, 'si': true } }, process.env.jwtSecret, { expiresIn: '24h' })
+
+        if (token) {
+            resolve(token)
+        }
+        else {
+            reject("token not generated for some reason, server error")
+        }
+
+    })
+
+}
+
+// send an email to user for confirmation
+var sendConfirmationEmail = (user_email) => {
+
+    return new Promise(async (resolve, reject) => {
+
+        try{
+            // sign a confirmation token first
+            let jwt = await signConfirmJWT(user_email)
+
+            // then send the email to the user with the token parameters
+            let mailOptions = {
+                from: process.env.email,
+                to: user_email,
+                subject: 'Sending Email using Node.js',
+                html: `<h1>Welcome</h1><p>Confirm this registration pls 2</p><a href=${confirmationUrl + '?ctoken=' + jwt} target="_blank">Confirm</a>`
+            }
+
+            let mail_result = await transporter.sendMail(mailOptions)
+            resolve(mail_result)
+
+        }
+        catch(e) {
+            reject(e)
+        }
+
+    })
+
+}
+
+// user registration method
+var userRegistration = (user_submit) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database(sqlconfig)
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'SELECT EXISTS(SELECT * FROM users WHERE email=?) AS solution',
+                'INSERT INTO users (email, username, password) VALUES (?, ?, ?)',
+                'SELECT id FROM users WHERE email=?',
+                'INSERT INTO users_plans(user_id, plan_id) VALUES (?, ?)'
+            ]
+            // all possible errors
+            const register_errors = [
+                'db error cannot find solution',
+                'email alr exist in db'
+            ]
+
+            // first check whether this email alr exist in the db or not
+            let result_row = await database.query(sql_queries[0], [user_submit.email])
+
+            if(result_row) {
+                // db has result
+
+                if (result_row[0].solution) {
+                    // if email alr in used, then throw error
+                    throw register_errors[1]
+                }
+                else {
+                    // prepare to register this user into my db
+
+                    // hash the user password first
+                    let hash_pw = await bcrypt.hash(user_submit.password, saltRounds)
+
+                    // successfully hashed password; store user in DB
+                    let store_result = await database.query(sql_queries[1], [user_submit.email, user_submit.username, hash_pw])
+                    
+                    // has alr successfully stored this user in the db
+
+                    // find the id
+                    let user_id = await database.query(sql_queries[2], [user_submit.email])
+
+                    // auto register a plan for this user
+                    let register_plan_result = await database.query(sql_queries[3], [user_id[0].id, 1]);
+
+                    // then finally send the confirmation email
+                    let mail_result = await sendConfirmationEmail(user_submit.email)
+
+                    resolve()
+                }
+
+            }
+            else {
+                // for some reason, db return null for my solution
+                throw register_errors[0]
+            }
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+
+    })
+}
+
+// user login async method.. will return a jwt if everything success
+var userLoginJwt = (user_submit, cb) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database(sqlconfig)
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'SELECT * FROM users WHERE email=?',
+                'UPDATE users SET lastlogin=CURRENT_TIMESTAMP WHERE email=?'
+            ]
+            // all possible errors
+            const login_errors = [
+                'email not found in db', 
+                'user has not yet confirm their email', 
+                'password is incorrect'
+            ]
+
+            // firstly, get the sql query info for this user by using email 
+            const user_row = await database.query(sql_queries[0], [user_submit.email])
+
+            // select the first query
+            const user_select = user_row[0]
+
+            if(!user_select) {
+                // if cannot find any user based on this email, then throw error
+                throw login_errors[0]
+            }
+
+            if (user_select.confirm) {
+
+                // user has alr confirmed their email
+
+                // get the hash password from the db query
+                // compare it with bcrypt
+                let hashpw_compare = await bcrypt.compare(user_submit.password, user_select.password.toString())
+
+                if (hashpw_compare) {
+                    // if password is correct
+
+                    // sign the jwt and update the user last login 
+                    let all_results = await Promise.all([
+                        signLoginJWT(user_select.id), // sign the login jwt
+                        database.query(sql_queries[1], [user_select.email]) // update the user last login info
+                    ])
+
+                    // resolve the jwt
+                    resolve(all_results[0])
+                }
+                else {
+                    // if password is incorrect, throw an error
+                    throw login_errors[2]
+                }
+            }
+            else {
+                // if user not yet confirm their email, throw error
+                throw login_errors[1]
+            }
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+    })
+}
+
+// check user confirmation or not
+var updateUserConfirmation = (user_email) => {
+    return new Promise(async (resolve, reject)=>{
+
+        // then update db about confimation
+        // connect to mariadb/mysql
+        let database = new Database(sqlconfig)
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'UPDATE users SET confirm=1 WHERE email=(?)'
+            ]
+            // all possible errors
+            const register_errors = [
+            ]
+
+            // set the confirmation
+            let result_row = await database.query(sql_queries[0], [user_email])
+
+            resolve()
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+    })
+}
 
 router.post(
     '/register',
@@ -45,133 +296,21 @@ router.post(
             // get the matched data
             const user = matchedData(req);
 
-            // connect to mariadb/mysql
-            const db = require('../../db.js');
+            userRegistration({ email: user.email, password: user.password, username: user.username }).then(() => {
 
-            // promise to send email to this user email for confirmation
-            const sendConfirmationEmail = () => {
-
-                return new Promise((resolve, reject)=>{
-
-                    // sign a confirmation token first
-                    let token = jwt.sign({ data: { 'e': user.email, 'ct': true } }, process.env.jwtSecret, { expiresIn: '3h' });
-
-                    // then send the email to the user with the token parameters
-                    var mailOptions = {
-                        from: process.env.email,
-                        to: user.email,
-                        subject: 'Sending Email using Node.js',
-                        html: `<h1>Welcome</h1><p>Confirm this registration pls 2</p><a href=${confirmationUrl + '?ctoken=' + token} target="_blank">Confirm</a>`
-                    };
-
-                    transporter.sendMail(mailOptions, (error, info) => {
-                        if (error) {
-                            reject(error);
-                        }
-                        else {
-                            console.log('Email sent: ' + info.response);
-                            resolve(info.response);
-                        }
-                    });
-                });
-
-            }
-
-            // first check whether this email exist in the db or not
-            dbquery.checkEmailInDB(db, user.email).then((result) => {
-
-                // email is unique
-                // hash the user password
-                const bcrypt = require('bcrypt');
-                return bcrypt.hash(user.password, saltRounds);
-
-            }).then((hash)=>{
-
-                // successfully hashed password
-                // store hash password in DB
-                return dbquery.registerUser(db, user.email, user.username, hash);
-
-            }).then((result)=>{
-
-                // successfully register user
-                // now find that user id
-                return dbquery.findUserIdInDB(db, user.email);
-
-            }).then((user_id)=>{
-
-                // found the user_id, and then automatically register the default user plan
-                return dbquery.registerUserPlan(db, user_id, 1);
-
-            }).then(()=>{
-
-                // after successfully register the user plan
-                // send the confirmation email to the user pls
-                return sendConfirmationEmail();
-
-            }).then((result)=>{
-                
                 // successfully registered
                 res.setHeader('Content-type', 'application/json');
-                res.send(JSON.stringify({ success: 'true' }));
+                res.send(JSON.stringify({ success: 'true', msg: 'pls check email for confirmation' }))
 
-            }).catch((result) => {
+            }).catch((error) => {
 
-                // if catch any error msg, return back to client
-                return res.status(422).json({ success: 'false', errors: result });
+                return res.status(422).json({ success: 'false', errors: error })
 
-            });
+            })
 
         }
     }
 );
-
-require('dotenv').load()
-
-asyncdbquery = async (user_submit) => {
-
-    const sqlconfig = {
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME
-    }
-
-    // connect to mariadb/mysql
-    const database = new Database(sqlconfig)
-
-    try {
-        const sql_user_row = 'SELECT password, confirm FROM users WHERE email=?'
-
-        const user_row = await database.query(sql_user_row, [user_submit.email])
-
-        if (user_row[0].confirm) {
-
-            // get the hash password from the db query
-            let hashpw_compare = await bcrypt.compare(user_submit.password, user_row[0].password.toString())
-            
-            if(hashpw_compare) {
-                // if password is correct
-                
-            }
-            else {
-                throw 'password is incorrect'
-            }
-        }
-        else {
-            throw 'user has not yet confirm their email'
-        }
-    }
-    catch (e) {
-        console.log(e.toString());
-    }
-
-    // rmb to close the db
-    const dbclose = await database.close()
-
-}
-
-asyncdbquery({ email: 'ichijou8282@gmail.com', password: 'ichijo950802' })
-
 
 router.post(
     '/',
@@ -193,83 +332,17 @@ router.post(
             // get the matched data
             const user = matchedData(req);
 
-            // connect to mariadb/mysql
-            const db = require('../../db.js');
+            // user request sign in
+            userLoginJwt({ email: user.email, password: user.password }).then((jwt) => {
 
-            // return promise to sign a jwt for the user if trusted
-            const signJWT = (trusted, user_id) => {
+                res.setHeader('Content-type', 'application/json')
+                res.send(JSON.stringify({ authResult: true, jwt: jwt}))
 
-                return new Promise((resolve, reject) => {
+            }).catch((error) => {
 
-                    if (trusted) {
+                return res.status(422).json({ authResult: false, errors: error });
 
-                        // Officially trusted this client!
-
-                        // rmb generate a new jwt to user
-                        // will be expire in 12 hours
-                        let token = jwt.sign({ data: { 'i': user_id, 'si': true } }, process.env.jwtSecret, { expiresIn: '12h' });
-
-                        if (token) {
-                            resolve(token);
-                        }
-                        else {
-                            reject({ tokenError: { msg: "token not generated for some reason, server error" } });
-                        }
-
-                    }
-                    else {
-
-                        // not trusted, send errors message
-                        reject({ password: { msg: "password incorrect" } });
-
-                    }
-
-                });
-
-            };
-
-            // start the authentication process
-            dbquery.findUserPasswordAndConfirmInDB(db, user.email).then((hashpassword) => {
-
-                return bcrypt.compare(user.password, hashpassword.toString());
-
-            }).then(function (compareResult) {
-
-                // after that find the user id for signJWT
-                dbquery.findUserInfoInDB(db, user.email).then((userinfo) => {
-
-                    // sign the jwt
-                    signJWT(compareResult, userinfo.id).then((token) => {
-
-                        // update the login time stamp first before sending the token back to client
-                        dbquery.UpdateLoginTimestamp(db, user.email).then(() => {
-
-                            // send the result back to client
-                            // token will be generate here
-                            res.setHeader('Content-type', 'application/json');
-                            res.send(JSON.stringify({ authResult: true, jwt: token, username: userinfo.username }));
-
-                        }).catch((result) => {
-                            // if catch any error msg, return back to client
-                            return res.status(422).json({ authResult: false, errors: result });
-                        });
-
-                    }).catch((result) => {
-                        // if catch any error msg, return back to client
-                        return res.status(422).json({ authResult: false, errors: result });
-                    });
-
-                }).catch((result) => {
-                    // if catch any error msg, return back to client
-                    return res.status(422).json({ authResult: false, errors: result });
-                });
-
-            }).catch((result)=>{
-
-                // if catch any error msg, return back to client
-                return res.status(422).json({ authResult: false, errors: result });
-
-            });
+            })
 
         }
 
@@ -293,21 +366,17 @@ router.get('/confirm', (req, res)=>{
 
                 if (decoded.data.ct) {
 
-                    // then update db about confimation
-                    // connect to mariadb/mysql
-                    const db = require('../../db.js');
-                    
-                    dbquery.updateConfirmation(db, decoded.data.e).then((result)=>{
+                    updateUserConfirmation(decoded.data.e).then(() => {
 
                         // successfully update the user confirmation
-                        res.send(result);
+                        res.send('Thank you for joining! ' + decoded.data.e);
 
-                    }).catch((result)=>{
+                    }).catch((error) => {
 
                         // update confirmation not successfull
-                        res.send(result);
+                        res.send(error);
 
-                    });
+                    })
 
                 }
                 else {
