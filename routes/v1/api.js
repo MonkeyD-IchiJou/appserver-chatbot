@@ -2,7 +2,6 @@ const router = require('express').Router();
 var jwt = require('jsonwebtoken'); // sign with default (HMAC SHA256)
 const { check, validationResult } = require('express-validator/check');
 const { matchedData, sanitize } = require('express-validator/filter');
-const dbquery = require('../../dbquery');
 
 // every api router will go through JWT verification first
 router.use(
