@@ -33,6 +33,166 @@ var getUserInfoByID = (user_id) => {
     })
 }
 
+// check user confirmation or not
+var createNewProject = (user_submit) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database()
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'SELECT EXISTS(SELECT * FROM projects WHERE name=?) AS solution',
+                'SELECT plan_id FROM users_plans WHERE user_id=?',
+                'SELECT * FROM plans WHERE id=?',
+                'SELECT name FROM projects WHERE createdby=?',
+                'INSERT INTO projects (createdby, name, description) VALUES (?, ?, ?)'
+            ]
+
+            // all possible errors
+            const db_errors = [
+                'project name alr exist',
+                'cannot find user plan id',
+                'cannot find the plan detail',
+                'exceed project limit'
+            ]
+
+            // check for unique name
+            let row_solution = await database.query(sql_queries[0], [user_submit.proj_name])
+
+            if (row_solution[0].solution) {
+                // if the project name alr exist in the db
+                throw db_errors[0]
+            }
+
+            // do things in parallel
+            let all_results = await Promise.all([
+                new Promise(async (resolve, reject) => {
+                    // find out the user current plans
+
+                    let user_planid = ''
+
+                    {
+                        // find the plan id
+                        let row_plan_id = await database.query(sql_queries[1], [user_submit.user_id])
+                        user_planid = row_plan_id[0]
+                    }
+
+                    if (!user_planid) {
+                        reject(db_errors[1])
+                    }
+
+                    let plan_info = ''
+
+                    {
+                        let row_plan_info = await database.query(sql_queries[2], [user_planid.plan_id])
+                        plan_info = row_plan_info[0]
+                    }
+
+                    if (!plan_info) {
+                        reject(db_errors[2])
+                    }
+
+                    // return the user signed up plan info
+                    resolve(plan_info)
+                }),
+                new Promise(async (resolve, reject) => {
+                    // find all projects created by this user
+                    let row_projname = await database.query(sql_queries[3], [user_submit.user_id])
+                    resolve(row_projname)
+                })
+            ])
+
+            let plan_info = all_results[0]
+            let all_user_projs = all_results[1]
+
+            if (all_user_projs.length >= plan_info.projects_limit) {
+                // user has created too many projects, exceed project limit
+                throw db_errors[3]
+            }
+
+            // create the new project
+            let row_insert_proj = await database.query(sql_queries[4], [user_submit.user_id, user_submit.proj_name, user_submit.proj_desc])
+            resolve(row_insert_proj.insertId)
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+    })
+}
+
+// client is supposed to keep this secret.. if not other people can abuse it
+//let bottoken = jwt.sign({ data: { 'id': '0' } }, process.env.jwtSecret + '1')
+
+// get the bot id based on the token
+//let botverify = jwt.verify(bottoken, process.env.jwtSecret + '1')
+
+// user project want to create a new chatbot
+var projectCreateNewChatbot = (user_submit) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database()
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'SELECT id, createdby FROM projects WHERE name=?',
+                'SELECT * FROM chatbots WHERE project_id=?',
+                'INSERT INTO chatbots (project_id, name) VALUES (?, ?)'
+            ]
+
+            // all possible errors
+            const db_errors = [
+                'no such project, project name incorrect',
+                'this project is not created by this user, therefore cannot create a chatbot from it',
+                'this project alr has a chatbot'
+            ]
+
+            // get the project info first
+            let row_projinfo = await database.query(sql_queries[0], [user_submit.proj_name])
+
+            if (!row_projinfo[0]) {
+                // cannot find this project in db
+                throw db_errors[0]
+            }
+
+            let projid = row_projinfo[0].id
+            let createdby = row_projinfo[0].createdby
+
+            if (createdby != user_submit.user_id) {
+                // if this project is not created by this user, then throw error
+                throw db_errors[1]
+            }
+
+            // check whether this project got existing chatbot or not
+            let row_chatbots = await database.query(sql_queries[1], [projid])
+
+            if (row_chatbots[0]) {
+                // if alr has existing chatbot, then throw error
+                throw db_errors[2]
+            }
+
+            // then insert this new chatbot into my db
+            let row_insert_chatbot = await database.query(sql_queries[2], [projid, user_submit.chatbot_name])
+            resolve(row_insert_chatbot.insertId)
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+    })
+}
+
 // every api router will go through JWT verification first
 router.use(
     [
@@ -80,7 +240,7 @@ router.post('/validatetoken', (req, res) => {
             res.send(JSON.stringify({ success: true, data: req.decoded, username: result.username }));
         }
         else {
-            return res.status(422).json({ success: false, errors: error });
+            return res.status(422).json({ success: false, errors: 'no such user in db' });
         }
 
     }).catch((error) => {
@@ -106,103 +266,31 @@ router.post(
             return res.status(422).json({ success: false, errors: errors.mapped() });
         }
         else {
-            let projectname = matchedData(req).projectname;
+
             let userid = req.decoded.data.i;
-            let projectDescription = matchedData(req).description;
+            let projectname = matchedData(req).projectname;
+            let proj_desc = matchedData(req).description;
 
-            // connect to mariadb/mysql
-            const db = require('../../db.js');
+            createNewProject({ user_id: userid, proj_name: projectname, proj_desc: proj_desc }).then((proj_id) => {
 
-            const checkSimilarProjectName = (results) => {
+                // send the result back to client
+                res.setHeader('Content-type', 'application/json')
+                res.send(JSON.stringify({ success: true }))
 
-                return new Promise((resolve, reject) => {
+            }).catch((error) => {
+                return res.status(422).json({ success: false, errors: error })
+            })
 
-                    for (let i = 0; i < results.length; ++i) {
-                        if (projectname === results[i].name) {
-                            reject('project name alr exist in your projects db, pls choose another name');
-                        }
-                    }
-
-                    resolve(true);
-                });
-
-            };
-
-            dbquery.findPlanIdInDB(db, userid).then((plan_id)=>{
-
-                return dbquery.findPlansInDB(db, plan_id)
-
-            }).then((plans)=>{
-
-                dbquery.findAllUserProjects(db, userid).then((results) => {
-
-                    if(results.length >= plans.projects_limit){
-                        // send the result back to client
-                        res.setHeader('Content-type', 'application/json');
-                        res.send(JSON.stringify({ success: false, msg: 'exceed the project limit' }));
-                    }
-
-                    else if (results.length > 0) {
-
-                        // check whether got any similar project name or not
-                        checkSimilarProjectName(results).then(() => {
-
-                            // then create the new project
-                            return dbquery.createNewProject(db, userid, projectname, projectDescription);
-
-                        }).then(() => {
-
-                            // send the result back to client
-                            res.setHeader('Content-type', 'application/json');
-                            res.send(JSON.stringify({ success: true }));
-
-                        }).catch((result) => {
-
-                            // if catch any error msg, return back to client
-                            return res.status(422).json({ success: false, errors: result });
-
-                        });
-
-                    }
-
-                    else if (results.length == 0) {
-
-                        dbquery.createNewProject(db, userid, projectname, projectDescription).then(() => {
-
-                            // send the result back to client
-                            res.setHeader('Content-type', 'application/json');
-                            res.send(JSON.stringify({ success: true }));
-
-                        }).catch((result) => {
-
-                            // if catch any error msg, return back to client
-                            return res.status(422).json({ success: false, errors: result });
-
-                        });
-
-                    }
-
-                }).catch((result) => {
-
-                    // if catch any error msg, return back to client
-                    return res.status(422).json({ success: false, errors: result });
-
-                });
-
-            }).catch((result)=>{
-
-                return res.status(422).json({ success: false, errors: result });
-
-            });
         }
-})
+    }
+)
 
 // create a new chatbot
 router.post(
     '/newchatbot',
     [
-        check('chatbotName', 'must have a chatbot name').exists().isLength({ min: 1 }),
-        check('apitoken', 'apitoken is require').exists().isLength({ min: 1 })
+        check('projectname', 'project name is required').exists().isLength({ min: 1 }),
+        check('chatbotname', 'must have a chatbot name').exists().isLength({ min: 1 })
     ],
     (req, res) => {
 
@@ -215,30 +303,18 @@ router.post(
         }
         else {
 
-            let chatbotName = matchedData(req).chatbotName;
-            let apitoken = matchedData(req).apitoken;
+            let projectName = matchedData(req).projectname;
+            let userid = req.decoded.data.i;
+            let chatbotName = matchedData(req).chatbotname;
 
-            const db = require('../../db.js');
-
-            dbquery.getChatbots(db, apitoken).then((results) => {
-
-                if(results.length > 0){
-                    return new Promise((resolve, reject) => {
-                        reject('one project one chatbot only');
-                    });
-                }
-                else {
-                    return dbquery.createChatBot(db, apitoken, chatbotName)
-                }
-
-            }).then(() => {
+            projectCreateNewChatbot({ proj_name: projectName, user_id: userid, chatbot_name: chatbotName }).then((result) => {
 
                 // send the result back to client
-                res.setHeader('Content-type', 'application/json');
-                res.send(JSON.stringify({ success: true }));
+                res.setHeader('Content-type', 'application/json')
+                res.send(JSON.stringify({ success: true }))
 
-            }).catch((result) => {
-                return res.status(422).json({ success: false, errors: result });
+            }).catch((error) => {
+                return res.status(422).json({ success: false, errors: error })
             })
 
         }
