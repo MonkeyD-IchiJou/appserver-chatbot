@@ -1,4 +1,3 @@
-require('../../loadenv')() // load all the env
 const router = require('express').Router()
 const { check, validationResult } = require('express-validator/check')
 const { matchedData, sanitize } = require('express-validator/filter')
