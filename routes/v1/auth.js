@@ -15,12 +15,6 @@ var transporter = nodemailer.createTransport({
         pass: process.env.email_password
     }
 })
-const sqlconfig = {
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
-}
 
 // return promise to sign a jwt for the user confirmation email
 var signConfirmJWT = (user_email) => {
@@ -96,7 +90,7 @@ var userRegistration = (user_submit) => {
     return new Promise(async (resolve, reject) => {
 
         // connect to mariadb/mysql
-        let database = new Database(sqlconfig)
+        let database = new Database()
 
         try {
             // all necessary sql queries
@@ -169,7 +163,7 @@ var userLoginJwt = (user_submit, cb) => {
     return new Promise(async (resolve, reject) => {
 
         // connect to mariadb/mysql
-        let database = new Database(sqlconfig)
+        let database = new Database()
 
         try {
             // all necessary sql queries
@@ -241,7 +235,7 @@ var updateUserConfirmation = (user_email) => {
 
         // then update db about confimation
         // connect to mariadb/mysql
-        let database = new Database(sqlconfig)
+        let database = new Database()
 
         try {
             // all necessary sql queries
