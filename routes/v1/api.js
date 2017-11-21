@@ -1,7 +1,37 @@
-const router = require('express').Router();
-var jwt = require('jsonwebtoken'); // sign with default (HMAC SHA256)
-const { check, validationResult } = require('express-validator/check');
-const { matchedData, sanitize } = require('express-validator/filter');
+const router = require('express').Router()
+var jwt = require('jsonwebtoken') // sign with default (HMAC SHA256)
+const { check, validationResult } = require('express-validator/check')
+const { matchedData, sanitize } = require('express-validator/filter')
+var { Database } = require('../../database')
+
+// check user confirmation or not
+var getUserInfoByID = (user_id) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database()
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'SELECT * FROM users WHERE id=?'
+            ]
+
+            // set the confirmation
+            let result_row = await database.query(sql_queries[0], [user_id])
+
+            resolve(result_row[0])
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+    })
+}
 
 // every api router will go through JWT verification first
 router.use(
@@ -23,8 +53,6 @@ router.use(
             // get the jwt token from body
             let token = matchedData(req).token;
 
-            console.log('verifying token');
-
             jwt.verify(token, process.env.jwtSecret, (err, decoded) => {
                 if (err) {
                     return res.json({ success: false, errors: {jwt: 'json web token validate error'} });
@@ -39,7 +67,27 @@ router.use(
         }
 
     }
-);
+)
+
+// Just a simple checking whether this token is available or not
+router.post('/validatetoken', (req, res) => {
+
+    // return some user info back
+    getUserInfoByID(req.decoded.data.i).then((result) => {
+
+        if (result) {
+            res.setHeader('Content-type', 'application/json');
+            res.send(JSON.stringify({ success: true, data: req.decoded, username: result.username }));
+        }
+        else {
+            return res.status(422).json({ success: false, errors: error });
+        }
+
+    }).catch((error) => {
+        return res.status(422).json({ success: false, errors: error });
+    })
+
+})
 
 // create a new project
 router.post(
@@ -147,7 +195,7 @@ router.post(
 
             });
         }
-});
+})
 
 // create a new chatbot
 router.post(
@@ -196,7 +244,7 @@ router.post(
         }
 
     }
-);
+)
 
 // get all the projects related to this user
 router.post('/getprojects', (req, res) => {
@@ -215,21 +263,6 @@ router.post('/getprojects', (req, res) => {
         return res.status(422).json({ success: false, errors: result });
     });
 
-});
-
-// Just a simple checking whether this token is available or not
-router.post('/validatetoken', (req, res) => {
-
-    const db = require('../../db.js');
-
-    dbquery.findUserInfoByID(db, req.decoded.data.i).then((result) => {
-        // send the result back to client
-        res.setHeader('Content-type', 'application/json');
-        res.send(JSON.stringify({ success: true, data: req.decoded, username: result.username }));
-    }).catch((result) => {
-        console.log(result);
-    });
-
-});
+})
 
 module.exports = router;
