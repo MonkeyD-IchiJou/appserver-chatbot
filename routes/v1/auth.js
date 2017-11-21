@@ -112,43 +112,44 @@ var userRegistration = (user_submit) => {
                 'email alr exist in db'
             ]
 
-            // first check whether this email alr exist in the db or not
-            let result_row = await database.query(sql_queries[0], [user_submit.email])
+            let first_result_row = ''
 
-            if(result_row) {
-                // db has result
-
-                if (result_row[0].solution) {
-                    // if email alr in used, then throw error
-                    throw register_errors[1]
-                }
-                else {
-                    // prepare to register this user into my db
-
-                    // hash the user password first
-                    let hash_pw = await bcrypt.hash(user_submit.password, saltRounds)
-
-                    // successfully hashed password; store user in DB
-                    let store_result = await database.query(sql_queries[1], [user_submit.email, user_submit.username, hash_pw])
-                    
-                    // has alr successfully stored this user in the db
-
-                    // find the id
-                    let user_id = await database.query(sql_queries[2], [user_submit.email])
-
-                    // auto register a plan for this user
-                    let register_plan_result = await database.query(sql_queries[3], [user_id[0].id, 1]);
-
-                    // then finally send the confirmation email
-                    let mail_result = await sendConfirmationEmail(user_submit.email)
-
-                    resolve()
-                }
-
+            {
+                // first check whether this email alr exist in the db or not
+                let result_row = await database.query(sql_queries[0], [user_submit.email])
+                first_result_row = result_row[0]
             }
-            else {
+
+            if (!first_result_row) {
                 // for some reason, db return null for my solution
                 throw register_errors[0]
+            }
+
+            if (first_result_row.solution) {
+                // if email alr in used, then throw error
+                throw register_errors[1]
+            }
+            else {
+                // prepare to register this user into my db
+
+                // hash the user password first
+                let hash_pw = await bcrypt.hash(user_submit.password, saltRounds)
+
+                // successfully hashed password; store user in DB
+                let store_result = await database.query(sql_queries[1], [user_submit.email, user_submit.username, hash_pw])
+
+                // has alr successfully stored this user in the db
+
+                // find the id
+                let user_id = await database.query(sql_queries[2], [user_submit.email])
+
+                // auto register a plan for this user
+                let register_plan_result = await database.query(sql_queries[3], [user_id[0].id, 1]);
+
+                // then finally send the confirmation email
+                let mail_result = await sendConfirmationEmail(user_submit.email)
+
+                resolve()
             }
 
         }
