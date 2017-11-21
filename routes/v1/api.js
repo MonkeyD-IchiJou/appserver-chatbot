@@ -126,12 +126,6 @@ var createNewProject = (user_submit) => {
     })
 }
 
-// client is supposed to keep this secret.. if not other people can abuse it
-//let bottoken = jwt.sign({ data: { 'id': '0' } }, process.env.jwtSecret + '1')
-
-// get the bot id based on the token
-//let botverify = jwt.verify(bottoken, process.env.jwtSecret + '1')
-
 // user project want to create a new chatbot
 var projectCreateNewChatbot = (user_submit) => {
     return new Promise(async (resolve, reject) => {
@@ -144,7 +138,7 @@ var projectCreateNewChatbot = (user_submit) => {
             const sql_queries = [
                 'SELECT id, createdby FROM projects WHERE name=?',
                 'SELECT * FROM chatbots WHERE project_id=?',
-                'INSERT INTO chatbots (project_id, name) VALUES (?, ?)'
+                'INSERT INTO chatbots (project_id, jwt, uuid, name) VALUES (?, ?, ?, ?)'
             ]
 
             // all possible errors
@@ -178,8 +172,12 @@ var projectCreateNewChatbot = (user_submit) => {
                 throw db_errors[2]
             }
 
+            // client is supposed to keep this secret.. if not other people can abuse it
+            let botjwt = jwt.sign({ data: { 'n': user_submit.chatbot_name } }, process.env.jwtSecret + projid)
+            let botuuid = botjwt.slice(botjwt.lastIndexOf(".") + 1)
+
             // then insert this new chatbot into my db
-            let row_insert_chatbot = await database.query(sql_queries[2], [projid, user_submit.chatbot_name])
+            let row_insert_chatbot = await database.query(sql_queries[2], [projid, botjwt, botuuid, user_submit.chatbot_name])
             resolve(row_insert_chatbot.insertId)
 
         }
@@ -228,26 +226,6 @@ router.use(
 
     }
 )
-
-// Just a simple checking whether this token is available or not
-router.post('/validatetoken', (req, res) => {
-
-    // return some user info back
-    getUserInfoByID(req.decoded.data.i).then((result) => {
-
-        if (result) {
-            res.setHeader('Content-type', 'application/json');
-            res.send(JSON.stringify({ success: true, data: req.decoded, username: result.username }));
-        }
-        else {
-            return res.status(422).json({ success: false, errors: 'no such user in db' });
-        }
-
-    }).catch((error) => {
-        return res.status(422).json({ success: false, errors: error });
-    })
-
-})
 
 // create a new project
 router.post(
@@ -322,22 +300,23 @@ router.post(
     }
 )
 
-// get all the projects related to this user
-router.post('/getprojects', (req, res) => {
+// Just a simple checking whether this token is available or not
+router.post('/validatetoken', (req, res) => {
 
-    let userid = req.decoded.data.i;
+    // return some user info back
+    getUserInfoByID(req.decoded.data.i).then((result) => {
 
-    // connect to mariadb/mysql
-    const db = require('../../db.js');
+        if (result) {
+            res.setHeader('Content-type', 'application/json');
+            res.send(JSON.stringify({ success: true, data: req.decoded, username: result.username }));
+        }
+        else {
+            return res.status(422).json({ success: false, errors: 'no such user in db' });
+        }
 
-    dbquery.findAllUserProjectsInfo(db, userid).then((results) => {
-        // send the result back to client
-        res.setHeader('Content-type', 'application/json');
-        res.send(JSON.stringify({ success: true, results: results }));
-    }).catch((result) => {
-        console.log('adf');
-        return res.status(422).json({ success: false, errors: result });
-    });
+    }).catch((error) => {
+        return res.status(422).json({ success: false, errors: error });
+    })
 
 })
 
