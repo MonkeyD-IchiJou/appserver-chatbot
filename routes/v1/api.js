@@ -245,9 +245,9 @@ router.post(
         }
         else {
 
-            let userid = req.decoded.data.i;
-            let projectname = matchedData(req).projectname;
-            let proj_desc = matchedData(req).description;
+            let userid = req.decoded.data.i
+            let projectname = matchedData(req).projectname
+            let proj_desc = matchedData(req).description
 
             createNewProject({ user_id: userid, proj_name: projectname, proj_desc: proj_desc }).then((proj_id) => {
 
