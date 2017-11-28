@@ -7,7 +7,7 @@ var { Database } = require('../../database')
 const bcrypt = require('bcryptjs')
 
 const saltRounds = 10
-const confirmationUrl = "http://localhost:8000/v1/auth/confirm";
+const confirmationUrl = "http://localhost:8000/v1/auth/confirm"
 var transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -304,7 +304,7 @@ router.post(
 
         }
     }
-);
+)
 
 router.post(
     '/',
@@ -341,7 +341,7 @@ router.post(
         }
 
     }
-);
+)
 
 router.get('/confirm', (req, res)=>{
     // get the confirmation token
@@ -386,6 +386,6 @@ router.get('/confirm', (req, res)=>{
         res.send('Invalid Token, u hacka?');
     }
 
-});
+})
 
 module.exports = router;
