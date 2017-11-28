@@ -451,6 +451,64 @@ router.post(
     }
 )
 
+router.get(
+    '/intent',
+    [
+        check('intentName', 'must have a intent name').exists().isLength({ min: 1 })
+    ],
+    (req, res) => {
+        // checking the results
+        const errors = validationResult(req)
+
+        if (!errors.isEmpty()) {
+            // if request datas is incomplete or error, return error msg
+            return res.status(422).json({ success: false, errors: errors.mapped() })
+        }
+        else {
+
+            getIntentFromThisChatbot({ botdetails: req.botdetails, intentName: matchedData(req).intentName }).then((intent) => {
+
+                res.json({ success: true, intent: { tag: intent.name, patterns: intent.patterns, responses: intent.responses } })
+
+            }).catch((error) => {
+
+                return res.status(422).json({ success: false, errors: error })
+
+            })
+
+        }
+    }
+)
+
+router.delete(
+    '/intent',
+    [
+        check('intentName', 'must have a intent name').exists().isLength({ min: 1 })
+    ],
+    (req, res) => {
+        // checking the results
+        const errors = validationResult(req)
+
+        if (!errors.isEmpty()) {
+            // if request datas is incomplete or error, return error msg
+            return res.status(422).json({ success: false, errors: errors.mapped() })
+        }
+        else {
+
+            deleteIntentFromThisChatbot({ botdetails: req.botdetails, intentName: matchedData(req).intentName }).then(() => {
+
+                res.json({ success: true })
+
+            }).catch((error) => {
+
+                return res.status(422).json({ success: false, errors: error })
+
+            })
+
+        }
+    }
+)
+
 router.post(
     '/patterns',
     [
@@ -500,64 +558,6 @@ router.post(
             updateNewResponseIntoIntent({ botdetails: req.botdetails, responses: matchedData(req).responses, intentName: matchedData(req).intentName }).then(() => {
 
                 res.json({ success: true })
-
-            }).catch((error) => {
-
-                return res.status(422).json({ success: false, errors: error })
-
-            })
-
-        }
-    }
-)
-
-router.get(
-    '/intent',
-    [
-        check('intentName', 'must have a intent name').exists().isLength({ min: 1 })
-    ],
-    (req, res)=>{
-        // checking the results
-        const errors = validationResult(req)
-
-        if (!errors.isEmpty()) {
-            // if request datas is incomplete or error, return error msg
-            return res.status(422).json({ success: false, errors: errors.mapped() })
-        }
-        else {
-
-            getIntentFromThisChatbot({ botdetails: req.botdetails, intentName: matchedData(req).intentName }).then((intent) => {
-
-                res.json({success: true, intent: {tag: intent.name, patterns: intent.patterns, responses: intent.responses}})
-
-            }).catch((error) => {
-
-                return res.status(422).json({ success: false, errors: error })
-
-            })
-
-        }
-    }
-)
-
-router.delete(
-    '/intent',
-    [
-        check('intentName', 'must have a intent name').exists().isLength({ min: 1 })
-    ],
-    (req, res) => {
-        // checking the results
-        const errors = validationResult(req)
-
-        if (!errors.isEmpty()) {
-            // if request datas is incomplete or error, return error msg
-            return res.status(422).json({ success: false, errors: errors.mapped() })
-        }
-        else {
-
-            deleteIntentFromThisChatbot({ botdetails: req.botdetails, intentName: matchedData(req).intentName }).then(() => {
-
-                res.json({success: true})
 
             }).catch((error) => {
 
