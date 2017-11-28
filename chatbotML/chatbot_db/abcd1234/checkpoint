@@ -1,0 +1,2 @@
+model_checkpoint_path: "/Users/ichijou/Documents/ExMachina/appserver-chatbot/chatbotML/chatbot_db/abcd1234/model.tflearn"
+all_model_checkpoint_paths: "/Users/ichijou/Documents/ExMachina/appserver-chatbot/chatbotML/chatbot_db/abcd1234/model.tflearn"
