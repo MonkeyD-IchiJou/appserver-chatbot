@@ -213,6 +213,122 @@ var updateNewResponseIntoIntent = (user_submit) => {
     })
 }
 
+// get all the intents from this chatbot
+var getAllIntentsFromThisChatbot = (user_submit) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database()
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'SELECT * FROM intents WHERE bot_id=?'
+            ]
+
+            // all possible errors
+            const db_errors = [
+            ]
+
+            // select the correct intent first
+            let row_selectintents = await database.query(sql_queries[0], [user_submit.botdetails.id])
+
+            // gather all the intents
+            let intents = []
+            for (let i = 0; i < row_selectintents.length; ++i) {
+                intents.push({
+                    tag: row_selectintents[i].name,
+                    patterns: JSON.parse(row_selectintents[i].patterns),
+                    responses: JSON.parse(row_selectintents[i].responses)
+                })
+            }
+
+            resolve({ intents: intents })
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+
+    })
+}
+
+// get certain intent from this chatbot
+var getIntentFromThisChatbot = (user_submit) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database()
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'SELECT name, patterns, responses FROM intents WHERE bot_id=? AND name=?',
+            ]
+
+            // all possible errors
+            const db_errors = [
+            ]
+
+            // select the correct intent first
+            let row_selectintent = await database.query(sql_queries[0], [user_submit.botdetails.id, user_submit.intentName])
+
+            if (row_selectintent[0]) {
+                row_selectintent[0].patterns = JSON.parse(row_selectintent[0].patterns)
+                row_selectintent[0].responses = JSON.parse(row_selectintent[0].responses)
+            }
+
+            resolve(row_selectintent[0])
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+
+    })
+}
+
+// delete certain intent from this chatbot
+var deleteIntentFromThisChatbot = (user_submit) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database()
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'DELETE FROM intents WHERE bot_id=? AND name=?'
+            ]
+
+            // all possible errors
+            const db_errors = [
+            ]
+
+            // delete this intent
+            let row_deleteintent = await database.query(sql_queries[0], [user_submit.botdetails.id, user_submit.intentName])
+            resolve()
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+
+    })
+}
+
 // every bot router need to submit its token and sessionId
 router.use(
     [
@@ -367,6 +483,77 @@ router.post(
     }
 )
 
+router.get(
+    '/intent',
+    [
+        check('intentName', 'must have a intent name').exists().isLength({ min: 1 })
+    ],
+    (req, res)=>{
+        // checking the results
+        const errors = validationResult(req)
+
+        if (!errors.isEmpty()) {
+            // if request datas is incomplete or error, return error msg
+            return res.status(422).json({ success: false, errors: errors.mapped() })
+        }
+        else {
+
+            getIntentFromThisChatbot({ botdetails: req.botdetails, intentName: matchedData(req).intentName }).then((intent) => {
+
+                res.json({success: true, intent: {tag: intent.name, patterns: intent.patterns, responses: intent.responses}})
+
+            }).catch((error) => {
+
+                return res.status(422).json({ success: false, errors: error })
+
+            })
+
+        }
+    }
+)
+
+router.delete(
+    '/intent',
+    [
+        check('intentName', 'must have a intent name').exists().isLength({ min: 1 })
+    ],
+    (req, res) => {
+        // checking the results
+        const errors = validationResult(req)
+
+        if (!errors.isEmpty()) {
+            // if request datas is incomplete or error, return error msg
+            return res.status(422).json({ success: false, errors: errors.mapped() })
+        }
+        else {
+
+            deleteIntentFromThisChatbot({ botdetails: req.botdetails, intentName: matchedData(req).intentName }).then(() => {
+
+                res.json({success: true})
+
+            }).catch((error) => {
+
+                return res.status(422).json({ success: false, errors: error })
+
+            })
+
+        }
+    }
+)
+
+router.get('/intents', (req, res)=>{
+
+    getAllIntentsFromThisChatbot({ botdetails: req.botdetails }).then((intents) => {
+
+        res.json(intents)
+
+    }).catch((error) => {
+
+        return res.status(422).json({ success: false, errors: error })
+
+    })
+
+})
 
 router.get('/render', (req, res) => {
 
