@@ -191,6 +191,118 @@ var projectCreateNewChatbot = (user_submit) => {
     })
 }
 
+// get all projects from this user
+var getAllProjectsFromThisUser = (user_id) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database()
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'SELECT * FROM projects WHERE createdby=?'
+            ]
+
+            // all possible errors
+            const db_errors = [
+            ]
+
+            // delete this intent
+            let row_selectprojects = await database.query(sql_queries[0], [user_id])
+            row_selectprojects
+            resolve(row_selectprojects)
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+
+    })
+}
+
+// get chatbot info from this user
+var getChatbotInfoFromThisUserProject = (user_id, proj_name) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database()
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'SELECT id FROM projects WHERE createdby=? AND name=?',
+                'SELECT * FROM chatbots WHERE project_id=?'
+            ]
+
+            // all possible errors
+            const db_errors = [
+                'cannot find the project id'
+            ]
+
+            // delete this intent
+            let row_selectprojectid = await database.query(sql_queries[0], [user_id, proj_name])
+
+            if (!row_selectprojectid.length) {
+                // no such project
+                throw db_errors[0]
+            }
+
+            // find the chatbot by using the project id
+            let row_selectchatbot = await database.query(sql_queries[1], [row_selectprojectid[0].id])
+
+            resolve(row_selectchatbot[0])
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+
+    })
+}
+
+// delete this user
+var deleteThisUser = (user_id) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database()
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'DELETE FROM users WHERE id=?'
+            ]
+
+            // all possible errors
+            const db_errors = [
+            ]
+
+            // delete this intent
+            let row_deleteuser = await database.query(sql_queries[0], [user_id])
+
+            resolve()
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+
+    })
+}
+
 // every api router will go through JWT verification first
 router.use(
     [
@@ -229,7 +341,7 @@ router.use(
 
 // create a new project
 router.post(
-    '/newproject',
+    '/project',
     [
         check('projectname', 'must have a project name').exists().isLength({ min: 1 }),
         check('description', 'must have a project description').exists().isLength({ min: 1 })
@@ -263,9 +375,20 @@ router.post(
     }
 )
 
+router.delete(
+    '/project',
+    [
+        check('projectname', 'must have a project name').exists().isLength({ min: 1 })
+    ],
+    (req, res) => {
+        // come back and do this
+        res.json({success: 'afsad'})
+    }
+)
+
 // create a new chatbot
 router.post(
-    '/newchatbot',
+    '/chatbot',
     [
         check('projectname', 'project name is required').exists().isLength({ min: 1 }),
         check('chatbotname', 'must have a chatbot name').exists().isLength({ min: 1 })
@@ -281,9 +404,9 @@ router.post(
         }
         else {
 
-            let projectName = matchedData(req).projectname;
-            let userid = req.decoded.data.i;
-            let chatbotName = matchedData(req).chatbotname;
+            let projectName = matchedData(req).projectname
+            let userid = req.decoded.data.i
+            let chatbotName = matchedData(req).chatbotname
 
             projectCreateNewChatbot({ proj_name: projectName, user_id: userid, chatbot_name: chatbotName }).then((result) => {
 
@@ -300,6 +423,67 @@ router.post(
     }
 )
 
+// get the chatbot info
+router.get(
+    '/chatbot',
+    [
+        check('projectname', 'project name is required').exists().isLength({ min: 1 }),
+    ],
+    (req, res) => {
+
+        // checking the results
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            // if request datas is incomplete or error, return error msg
+            return res.status(422).json({ success: false, errors: errors.mapped() });
+        }
+        else {
+            getChatbotInfoFromThisUserProject(req.decoded.data.i, matchedData(req).projectname).then((chatbotinfo) => {
+                res.json({ success: true, results: chatbotinfo })
+            }).catch((error) => {
+                return res.status(422).json({ success: false, errors: error })
+            })
+        }
+    }
+)
+
+// delete this chatbot
+router.delete(
+    '/chatbot',
+    [
+        check('projectname', 'project name is required').exists().isLength({ min: 1 }),
+    ],
+    (req, res) => {
+        res.json('delete this chatbot liao... or is it??')
+    }
+)
+
+// get all the projects
+router.get('/projects', (req, res) => {
+    getAllProjectsFromThisUser(req.decoded.data.i).then((allprojects) => {
+        res.json({success: true, results: allprojects})
+    }).catch((error) => {
+        return res.status(422).json({ success: false, errors: error })
+    })
+})
+
+// delete all the projects
+router.delete('/projects', (req, res) => {
+    res.json('all projects delete liao.. or is it?')
+})
+
+// delete the current user account
+router.delete('/deleteuser', (req, res) => {
+
+    deleteThisUser(req.decoded.data.i).then(()=>{
+        res.json({success: true})
+    }).catch((error)=>{
+        return res.status(422).json({ success: false, errors: error })
+    })
+
+})
+
 // Just a simple checking whether this token is available or not
 router.post('/validatetoken', (req, res) => {
 
@@ -308,14 +492,14 @@ router.post('/validatetoken', (req, res) => {
 
         if (result) {
             res.setHeader('Content-type', 'application/json');
-            res.send(JSON.stringify({ success: true, data: req.decoded, username: result.username }));
+            res.send(JSON.stringify({ success: true, data: req.decoded, username: result.username }))
         }
         else {
-            return res.status(422).json({ success: false, errors: 'no such user in db' });
+            return res.status(422).json({ success: false, errors: 'no such user in db' })
         }
 
     }).catch((error) => {
-        return res.status(422).json({ success: false, errors: error });
+        return res.status(422).json({ success: false, errors: error })
     })
 
 })
