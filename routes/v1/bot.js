@@ -2,6 +2,28 @@ const router = require('express').Router();
 const { check, validationResult } = require('express-validator/check')
 const { matchedData, sanitize } = require('express-validator/filter')
 var { Database } = require('../../database')
+var PythonShell = require('python-shell');
+
+var options = {
+    pythonPath: './chatbotML/bin/python',
+    args: ['value1', 'value2', 'value3']
+}
+
+var runPython = (scriptName, options) => {
+    return new Promise((resolve, reject) => {
+
+        PythonShell.run(scriptName, options, function (err, data) {
+
+            if (err) {
+                reject(err)
+            }
+
+            resolve(data)
+
+        })
+
+    })
+}
 
 // get the correct chatbot details based on uuid
 var checkChatbotUUID = (uuid) => {
@@ -62,7 +84,13 @@ var userToBotQuery = (user_submit) => {
             ]
 
             let row_insertlog = await database.query(sql_queries[0], [user_submit.botdetails.id, user_submit.sessionId, user_submit.q])
-            resolve(row_insertlog)
+
+            // run my python code and get the response
+            runPython('./chatbotML/chatbot_framework.py', options).then((r) => {
+                resolve(r)
+            }).catch((e) => {
+                throw e
+            })
 
         }
         catch (e) {
