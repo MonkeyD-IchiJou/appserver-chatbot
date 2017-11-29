@@ -2,6 +2,10 @@ const router = require('express').Router();
 const { check, validationResult } = require('express-validator/check')
 const { matchedData, sanitize } = require('express-validator/filter')
 var { Database } = require('../../database')
+var request = require('superagent')
+
+const bottraining_serverUrl = 'localhost:8001'
+const botframework_serverUrl = 'localhost:8002'
 
 // get the correct chatbot details based on uuid
 var checkChatbotUUID = (uuid) => {
@@ -54,16 +58,53 @@ var clientToBotQuery = (user_submit) => {
         try {
             // all necessary sql queries
             const sql_queries = [
-                'INSERT INTO bot_chatlogs (bot_id, sessionId, txt) VALUES (?, ?, ?)'
+                'INSERT INTO bot_chatlogs (bot_id, sessionId, txt) VALUES (?, ?, ?)',
+                'SELECT * FROM intents WHERE bot_id=?'
             ]
 
             // all possible errors
             const db_errors = [
+                'no intents for this chatbot'
             ]
 
+            // get all the intents from this chatbot
+            let row_intents = await database.query(sql_queries[1], [user_submit.botdetails.id])
+
+            let intentslen = row_intents.length
+
+            if (intentslen === 0) {
+                throw db_errors[0]
+            }
+
+            let intents = []
+
+            for (let i = 0; i < intentslen; ++i) {
+                intents.push({
+                    tag: row_intents[i].name,
+                    patterns: JSON.parse(row_intents[i].patterns),
+                    responses: JSON.parse(row_intents[i].responses)
+                })
+            }
+
+            // prepare to post msg to my chatbot
+            let postMsgToChatbot = request
+                .post(botframework_serverUrl + '/query')
+                .set('contentType', 'application/json; charset=utf-8')
+                .set('dataType', 'json')
+                .send({
+                    txt: user_submit.q,
+                    sessionId: user_submit.sessionId,
+                    botId: user_submit.botdetails.id,
+                    intents: intents
+                })
+
+            // insert user msg into my db first
             let row_insertlog = await database.query(sql_queries[0], [user_submit.botdetails.id, user_submit.sessionId, user_submit.q])
 
-            resolve('insert liao')
+            // ask my chatbot for a response
+            let chatbotresponse = await postMsgToChatbot
+
+            resolve(chatbotresponse.body)
 
         }
         catch (e) {
@@ -330,6 +371,68 @@ var deleteIntentFromThisChatbot = (user_submit) => {
     })
 }
 
+// train this chatbot
+var TrainChatbot = (user_submit) => {
+    return new Promise(async (resolve, reject) => {
+
+        // connect to mariadb/mysql
+        let database = new Database()
+
+        try {
+            // all necessary sql queries
+            const sql_queries = [
+                'SELECT * FROM intents WHERE bot_id=?'
+            ]
+
+            // all possible errors
+            const db_errors = [
+                'no intents for this chatbot'
+            ]
+
+            // get all the intents from this chatbot
+            let row_intents = await database.query(sql_queries[0], [user_submit.botId])
+
+            let intentslen = row_intents.length
+
+            if (intentslen === 0) {
+                throw db_errors[0]
+            }
+
+            let intents = []
+
+            for (let i = 0; i < intentslen; ++i) {
+                intents.push({
+                    tag: row_intents[i].name,
+                    patterns: JSON.parse(row_intents[i].patterns),
+                    responses: JSON.parse(row_intents[i].responses)
+                })
+            }
+
+            // prepare to post request for training the bot
+            let postToChatbotTraining = request.post(bottraining_serverUrl + '/train')
+                .set('contentType', 'application/json; charset=utf-8')
+                .set('dataType', 'json')
+                .send({
+                    botId: user_submit.botId,
+                    intents: intents
+                })
+
+            let trainingreq = await postToChatbotTraining
+
+            resolve(trainingreq)
+
+        }
+        catch (e) {
+            // reject the error
+            reject(e.toString())
+        }
+
+        // rmb to close the db
+        let dbclose = await database.close()
+
+    })
+}
+
 // every bot router need to submit its token and sessionId
 router.use(
     [
@@ -563,6 +666,16 @@ router.get('/render', (req, res) => {
 
     res.render('index', {
         bottoken: botdetails.name
+    })
+
+})
+
+router.get('/train', (req, res) => {
+
+    TrainChatbot({ botId: req.botdetails.id }).then((result) => {
+        res.json(result.body)
+    }).catch((error) => {
+        return res.status(422).json({ success: false, errors: error })
     })
 
 })
