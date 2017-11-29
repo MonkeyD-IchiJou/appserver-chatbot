@@ -1,15 +1,15 @@
-const router = require('express').Router();
+const router = require('express').Router()
 
 // /auth route for authentication purposes
-router.use('/auth', require('./v1/auth'));
+router.use('/auth', require('./v1/auth'))
 
-// /api routes (may need to be authenticate first before used)
-router.use('/api', require('./v1/api'));
+// /apiadmin routes (need to be authenticate the admin first before used)
+router.use('/apiadmin', require('./v1/api'))
 
-// /bot html template render routes
-router.use('/bot', require('./v1/bot'));
+// /botclient for client interact with my chatbot
+router.use('/botclient', require('./v1/bot'))
 
-// get embed js file
-router.use('/embed', require('./v1/embed'));
+// get embed js file for chatbot
+router.use('/embedbotclient', require('./v1/embed'))
 
-module.exports = router;
+module.exports = router
