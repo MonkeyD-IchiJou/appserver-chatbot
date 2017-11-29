@@ -115,6 +115,7 @@ var createNewProject = (user_submit) => {
             // create the new project
             let row_insert_proj = await database.query(sql_queries[4], [user_submit.user_id, user_submit.proj_name, user_submit.proj_desc])
             resolve(row_insert_proj.insertId)
+
         }
         catch (e) {
             // reject the error
@@ -210,52 +211,7 @@ var getAllProjectsFromThisUser = (user_id) => {
 
             // delete this intent
             let row_selectprojects = await database.query(sql_queries[0], [user_id])
-            row_selectprojects
             resolve(row_selectprojects)
-
-        }
-        catch (e) {
-            // reject the error
-            reject(e.toString())
-        }
-
-        // rmb to close the db
-        let dbclose = await database.close()
-
-    })
-}
-
-// get chatbot info from this user
-var getChatbotInfoFromThisUserProject = (user_id, proj_name) => {
-    return new Promise(async (resolve, reject) => {
-
-        // connect to mariadb/mysql
-        let database = new Database()
-
-        try {
-            // all necessary sql queries
-            const sql_queries = [
-                'SELECT id FROM projects WHERE createdby=? AND name=?',
-                'SELECT * FROM chatbots WHERE project_id=?'
-            ]
-
-            // all possible errors
-            const db_errors = [
-                'cannot find the project id'
-            ]
-
-            // delete this intent
-            let row_selectprojectid = await database.query(sql_queries[0], [user_id, proj_name])
-
-            if (!row_selectprojectid.length) {
-                // no such project
-                throw db_errors[0]
-            }
-
-            // find the chatbot by using the project id
-            let row_selectchatbot = await database.query(sql_queries[1], [row_selectprojectid[0].id])
-
-            resolve(row_selectchatbot[0])
 
         }
         catch (e) {
@@ -375,6 +331,7 @@ router.post(
     }
 )
 
+// delete a project
 router.delete(
     '/project',
     [
@@ -386,7 +343,7 @@ router.delete(
     }
 )
 
-// create a new chatbot
+// admin create a new chatbot
 router.post(
     '/chatbot',
     [
@@ -404,58 +361,20 @@ router.post(
         }
         else {
 
-            let projectName = matchedData(req).projectname
-            let userid = req.decoded.data.i
-            let chatbotName = matchedData(req).chatbotname
-
-            projectCreateNewChatbot({ proj_name: projectName, user_id: userid, chatbot_name: chatbotName }).then((result) => {
+            projectCreateNewChatbot({ proj_name: matchedData(req).projectname, user_id: req.decoded.data.i, chatbot_name: matchedData(req).chatbotname }).then((result) => {
 
                 // send the result back to client
                 res.setHeader('Content-type', 'application/json')
                 res.send(JSON.stringify({ success: true }))
 
             }).catch((error) => {
+
                 return res.status(422).json({ success: false, errors: error })
+
             })
 
         }
 
-    }
-)
-
-// get the chatbot info
-router.get(
-    '/chatbot',
-    [
-        check('projectname', 'project name is required').exists().isLength({ min: 1 }),
-    ],
-    (req, res) => {
-
-        // checking the results
-        const errors = validationResult(req);
-
-        if (!errors.isEmpty()) {
-            // if request datas is incomplete or error, return error msg
-            return res.status(422).json({ success: false, errors: errors.mapped() });
-        }
-        else {
-            getChatbotInfoFromThisUserProject(req.decoded.data.i, matchedData(req).projectname).then((chatbotinfo) => {
-                res.json({ success: true, results: chatbotinfo })
-            }).catch((error) => {
-                return res.status(422).json({ success: false, errors: error })
-            })
-        }
-    }
-)
-
-// delete this chatbot
-router.delete(
-    '/chatbot',
-    [
-        check('projectname', 'project name is required').exists().isLength({ min: 1 }),
-    ],
-    (req, res) => {
-        res.json('delete this chatbot liao... or is it??')
     }
 )
 
