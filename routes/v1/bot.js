@@ -9,6 +9,7 @@ var options = {
     args: ['value1', 'value2', 'value3']
 }
 
+// delete this function soon
 var runPython = (scriptName, options) => {
     return new Promise((resolve, reject) => {
 
@@ -67,7 +68,7 @@ var checkChatbotUUID = (uuid) => {
 }
 
 // send this txt query to my bot engine first then store it in my db
-var userToBotQuery = (user_submit) => {
+var clientToBotQuery = (user_submit) => {
     return new Promise(async (resolve, reject) => {
 
         // connect to mariadb/mysql
@@ -85,12 +86,7 @@ var userToBotQuery = (user_submit) => {
 
             let row_insertlog = await database.query(sql_queries[0], [user_submit.botdetails.id, user_submit.sessionId, user_submit.q])
 
-            // run my python code and get the response
-            runPython('./chatbotML/chatbot_framework.py', options).then((r) => {
-                resolve(r)
-            }).catch((e) => {
-                throw e
-            })
+            resolve('insert liao')
 
         }
         catch (e) {
@@ -406,7 +402,7 @@ router.post(
         }
         else {
 
-            userToBotQuery({ botdetails: req.botdetails, sessionId: req.sessionId, q: matchedData(req).q }).then((r) => {
+            clientToBotQuery({ botdetails: req.botdetails, sessionId: req.sessionId, q: matchedData(req).q }).then((r) => {
 
                 // for now do nothing
                 res.json({ r })
@@ -592,6 +588,11 @@ router.get('/render', (req, res) => {
         bottoken: botdetails.name
     })
 
+})
+
+// get bot info
+router.get('/info', (req, res) => {
+    res.json({ success: true, results: req.botdetails })
 })
 
 module.exports = router;
