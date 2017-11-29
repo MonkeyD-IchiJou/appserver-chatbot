@@ -123,28 +123,27 @@ var userRegistration = (user_submit) => {
                 // if email alr in used, then throw error
                 throw register_errors[1]
             }
-            else {
-                // prepare to register this user into my db
 
-                // hash the user password first
-                let hash_pw = await bcrypt.hash(user_submit.password, saltRounds)
+            // prepare to register this user into my db
 
-                // successfully hashed password; store user in DB
-                let store_result = await database.query(sql_queries[1], [user_submit.email, user_submit.username, hash_pw])
+            // hash the user password first
+            let hash_pw = await bcrypt.hash(user_submit.password, saltRounds)
 
-                // has alr successfully stored this user in the db
+            // successfully hashed password; store user in DB
+            let store_result = await database.query(sql_queries[1], [user_submit.email, user_submit.username, hash_pw])
 
-                // find the id
-                let user_id = await database.query(sql_queries[2], [user_submit.email])
+            // has alr successfully stored this user in the db
 
-                // auto register a plan for this user
-                let register_plan_result = await database.query(sql_queries[3], [user_id[0].id, 1]);
+            // find the id
+            let user_id = await database.query(sql_queries[2], [user_submit.email])
 
-                // then finally send the confirmation email
-                let mail_result = await sendConfirmationEmail(user_submit.email)
+            // auto register a plan for this user
+            let register_plan_result = await database.query(sql_queries[3], [user_id[0].id, 1])
 
-                resolve()
-            }
+            // then finally send the confirmation email
+            let mail_result = await sendConfirmationEmail(user_submit.email)
+
+            resolve()
 
         }
         catch (e) {
@@ -189,35 +188,33 @@ var userLoginJwt = (user_submit, cb) => {
                 throw login_errors[0]
             }
 
-            if (user_select.confirm) {
-
-                // user has alr confirmed their email
-
-                // get the hash password from the db query
-                // compare it with bcrypt
-                let hashpw_compare = await bcrypt.compare(user_submit.password, user_select.password.toString())
-
-                if (hashpw_compare) {
-                    // if password is correct
-
-                    // sign the jwt and update the user last login 
-                    let all_results = await Promise.all([
-                        signLoginJWT(user_select.id), // sign the login jwt
-                        database.query(sql_queries[1], [user_select.email]) // update the user last login info
-                    ])
-
-                    // resolve the jwt
-                    resolve(all_results[0])
-                }
-                else {
-                    // if password is incorrect, throw an error
-                    throw login_errors[2]
-                }
-            }
-            else {
+            if (!user_select.confirm) {
                 // if user not yet confirm their email, throw error
                 throw login_errors[1]
             }
+
+            // user has alr confirmed their email
+
+            // get the hash password from the db query
+            // compare it with bcrypt
+            let hashpw_compare = await bcrypt.compare(user_submit.password, user_select.password.toString())
+
+            if (!hashpw_compare) {
+                // if password is incorrect, throw an error
+                throw login_errors[2]
+            }
+
+            // if password is correct
+
+            // sign the jwt and update the user last login 
+            let all_results = await Promise.all([
+                signLoginJWT(user_select.id), // sign the login jwt
+                database.query(sql_queries[1], [user_select.email]) // update the user last login info
+            ])
+
+            // resolve the jwt
+            resolve(all_results[0])
+
         }
         catch (e) {
             // reject the error
