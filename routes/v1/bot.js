@@ -2,29 +2,6 @@ const router = require('express').Router();
 const { check, validationResult } = require('express-validator/check')
 const { matchedData, sanitize } = require('express-validator/filter')
 var { Database } = require('../../database')
-var PythonShell = require('python-shell');
-
-var options = {
-    pythonPath: './chatbotML/bin/python',
-    args: ['value1', 'value2', 'value3']
-}
-
-// delete this function soon
-var runPython = (scriptName, options) => {
-    return new Promise((resolve, reject) => {
-
-        PythonShell.run(scriptName, options, function (err, data) {
-
-            if (err) {
-                reject(err)
-            }
-
-            resolve(data)
-
-        })
-
-    })
-}
 
 // get the correct chatbot details based on uuid
 var checkChatbotUUID = (uuid) => {
