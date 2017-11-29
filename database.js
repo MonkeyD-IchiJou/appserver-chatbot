@@ -2,6 +2,7 @@ require('./loadenv')() // load all the env
 var mysql = require('mysql')
 
 exports.Database = class {
+
     constructor(config = {
         host: process.env.DB_HOST,
         user: process.env.DB_USER,
@@ -29,7 +30,8 @@ exports.Database = class {
                     return reject(err)
                 }
                 resolve()
-            });
-        });
+            })
+        })
     }
+
 }
